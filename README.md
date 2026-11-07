@@ -47,9 +47,11 @@ Members get their rights from their role in each project, so a person can lead o
 | Project role    | Can do                                                                   |
 | --------------- | ------------------------------------------------------------------------ |
 | Project manager | Runs the project: details, risk warnings, numbering, categories, members |
-| Buyer           | Buys and tracks all packages in the project _(packages come later)_      |
-| Package owner   | Keeps the packages assigned to them up to date _(packages come later)_   |
+| Buyer           | Adds packages and edits every package in the project                     |
+| Package owner   | Edits the packages they own, but can't hand them to someone else         |
 | Viewer          | Looks at everything in the project but changes nothing                   |
+
+Project managers can also add and edit every package. A package's owner must be a project manager, buyer or package owner in that project, and its responsible buyer a project manager or buyer. Removing someone from a project also removes them as owner or buyer of its packages.
 
 Only admins create projects. Each new project gets a project manager straight away, and a project can never lose its last project manager: make someone else project manager first.
 
@@ -59,15 +61,28 @@ Admins can't change their own role or deactivate themselves, so there is always 
 
 Admins set the company-wide **risk warning** defaults: a package turns amber or red when its spare time (days between expected delivery and the date it is needed) drops below these numbers. A new project gets a copy of them, and its project manager can change the project's own copy. Changing the defaults later doesn't change existing projects.
 
+## Packages
+
+Each project's **Packages** tab shows all its packages as a tree that can be folded, searched and filtered by status and category.
+
+- **Quick adding:** type a title, pick a category and press Enter. The package gets the next number straight away, and the form stays open for the next one. The other details (status, purchase type, quantity, owner, buyer, description, notes) are filled in later on the package's edit page.
+- **Sub-packages** can be divided again without limit. A sub-package gets its parent's category unless another one, or none, is chosen.
+- A top-level package needs a category when category codes are part of the project's numbers.
+- Packages are never deleted, so their numbers stay unique; set the status to **Cancelled** instead. A category that packages use can't be removed.
+- The list sends the whole tree at once, so folding, searching and filtering need no server round trip. Its query count doesn't grow with the number of packages.
+
+For trying lists with realistic amounts of data, `./vendor/bin/sail artisan db:seed --class=DemoProjectSeeder` adds a made-up project with about 3,000 packages (it takes a couple of minutes, and refuses to run in production).
+
 ## Package numbers
 
 Each project has its own numbering, set by its project manager on the project's **Numbering** page:
 
 - A number is built from up to four parts, in this order: an optional **prefix**, the **project code**, the **category code** and a **running number**. The prefix, project code and category code can each be left out.
 - The parts are joined with one **separator** (hyphen, dot, slash, underscore or none). The running number is padded with zeros to the chosen number of digits and starts at the chosen first number.
-- Sub-packages add their own number after a separator, which can't be "none": `P100-ELE-0007.01`.
+- Sub-packages add their own number after a separator, which can't be "none": `P100-ELE-0007.01`, and its own sub-package `P100-ELE-0007.01.01`. A sub-package's number always follows its parent's, whatever its own category.
 - The running number counts across the whole project, not per category, so every number is unique.
-- Numbers are never reused. Changing the numbering only affects packages added afterwards.
+- Numbers are never reused. Changing the numbering, a code or a package's category only affects packages added afterwards; existing numbers never change. Lowering the first number doesn't reuse numbers already given.
+- Each package also stores its place in the tree as a list of numbers (`number_path`, for example `{7,1,1}`). The list is sorted by it, so `.100` comes after `.99`, and a unique index makes duplicate numbers impossible even when two people add packages at the same moment.
 - Categories (for example `ELE Electrical`) belong to one project. Project and category codes use only letters and digits, so they can never be mistaken for a separator.
 
 The rules live in `app/Numbering/PackageNumberFormat.php`. The numbering page shows a live preview made by `resources/js/lib/packageNumber.ts`, and a browser test checks that both give the same result.
@@ -88,7 +103,7 @@ The interface is in English, built so that other languages can be added later wi
 
 1. Base app: sign-in, users, settings, security _(done)_
 2. Projects, project members and numbering schemes _(done)_
-3. Packages and sub-packages, with quick adding
+3. Packages and sub-packages, with quick adding _(done)_
 4. Milestones (planned, forecast, actual dates) and delivery calculation from lead times
 5. Risk levels and in-app notifications
 6. Dashboard and visuals
