@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Presenters\ProjectHeader;
 use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
+use App\Jobs\CheckProjectRisks;
 use App\Models\Project;
 use App\Models\ProjectMember;
 use App\Models\User;
@@ -114,6 +115,10 @@ class ProjectController extends Controller
         $project->risk_amber_days = $request->integer('risk_amber_days');
         $project->risk_red_days = $request->integer('risk_red_days');
         $project->save();
+
+        if ($project->wasChanged(['risk_amber_days', 'risk_red_days'])) {
+            CheckProjectRisks::dispatch($project->id, $request->user()->id);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Project saved.')]);
 

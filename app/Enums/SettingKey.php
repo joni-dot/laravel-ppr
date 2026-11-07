@@ -16,7 +16,7 @@ enum SettingKey: string
     public function defaultValue(): int
     {
         return match ($this) {
-            self::RiskAmberDays => 14,
+            self::RiskAmberDays => 7,
             self::RiskRedDays => 0,
         };
     }

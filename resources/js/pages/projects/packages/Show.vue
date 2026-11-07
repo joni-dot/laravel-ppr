@@ -1,21 +1,29 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { CalendarDays, Check, ChevronRight, Pencil } from '@lucide/vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { CalendarDays, Check, ChevronRight, Flag, Pencil } from '@lucide/vue';
+import { computed } from 'vue';
 import PackageController from '@/actions/App/Http/Controllers/Projects/PackageController';
+import PackageRiskFlagController from '@/actions/App/Http/Controllers/Projects/PackageRiskFlagController';
 import PackageScheduleController from '@/actions/App/Http/Controllers/Projects/PackageScheduleController';
+import FormField from '@/components/FormField.vue';
 import Heading from '@/components/Heading.vue';
+import PackageRiskBadge from '@/components/packages/PackageRiskBadge.vue';
 import PackageStatusBadge from '@/components/packages/PackageStatusBadge.vue';
 import QuickAddPackage from '@/components/packages/QuickAddPackage.vue';
 import ProjectLayout from '@/components/projects/ProjectLayout.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatDate } from '@/lib/format';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { trans } from '@/lib/i18n';
+import { riskReasonInWords } from '@/lib/packageRisk';
 import { floatInWords } from '@/lib/scheduleFloat';
 import { projectBreadcrumbs } from '@/lib/projectBreadcrumbs';
 import type {
     PackageDetails,
     PackageLink,
+    PackageRiskOverview,
     PackageScheduleSummary,
     ProjectCategory,
     ProjectHeader,
@@ -44,15 +52,76 @@ defineOptions({
     },
 });
 
-defineProps<{
+const props = defineProps<{
     project: ProjectHeader;
     package: PackageDetails;
     ancestors: PackageLink[];
     schedule: PackageScheduleSummary;
+    risk: PackageRiskOverview;
     subPackages: SubPackageRow[];
     categories: ProjectCategory[];
     can: { update: boolean; create: boolean };
 }>();
+
+const flagForm = useForm({ reason: props.risk.flag?.reason ?? '' });
+
+const isClosedOrCancelled = computed(
+    () =>
+        props.package.status === 'closed' ||
+        props.package.status === 'cancelled',
+);
+
+const riskReasons = computed(() =>
+    props.risk.reasons.map((reason) =>
+        riskReasonInWords(reason, {
+            floatDays: props.risk.floatDays,
+            overdueMilestone: props.risk.overdueMilestone?.name,
+            overdueDate: props.risk.overdueMilestone?.expected,
+            flagReason: props.risk.flag?.reason,
+        }),
+    ),
+);
+
+const flaggedBy = computed(() => {
+    const flag = props.risk.flag;
+
+    if (flag === null || flag.flaggedAt === null) {
+        return null;
+    }
+
+    return flag.flaggedByName === null
+        ? trans('Flagged on :date', { date: formatDateTime(flag.flaggedAt) })
+        : trans('Flagged by :name on :date', {
+              name: flag.flaggedByName,
+              date: formatDateTime(flag.flaggedAt),
+          });
+});
+
+function saveFlag(): void {
+    flagForm.post(
+        PackageRiskFlagController.store.url([
+            props.project.id,
+            props.package.id,
+        ]),
+        { preserveScroll: true },
+    );
+}
+
+function clearFlag(): void {
+    router.delete(
+        PackageRiskFlagController.destroy.url([
+            props.project.id,
+            props.package.id,
+        ]),
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                flagForm.reason = '';
+                flagForm.clearErrors();
+            },
+        },
+    );
+}
 
 function dateOrDash(date: string | null): string {
     return date === null ? '–' : formatDate(date);
@@ -145,6 +214,92 @@ function floatOrDash(days: number | null): string {
             <dt class="text-muted-foreground">{{ $t('Notes') }}</dt>
             <dd class="whitespace-pre-line">{{ package.notes ?? '–' }}</dd>
         </dl>
+
+        <section
+            class="max-w-3xl space-y-4"
+            :aria-label="$t('Risk')"
+            data-test="risk-panel"
+        >
+            <div class="flex flex-wrap items-center gap-3">
+                <Heading variant="small" :title="$t('Risk')" class="mb-0" />
+                <PackageRiskBadge
+                    v-if="risk.level !== 'none'"
+                    :level="risk.level"
+                />
+            </div>
+
+            <p v-if="isClosedOrCancelled" class="text-sm text-muted-foreground">
+                {{ $t('Closed and cancelled packages are never at risk.') }}
+            </p>
+            <p
+                v-else-if="risk.reasons.length === 0"
+                class="text-sm text-muted-foreground"
+            >
+                {{ $t('Nothing puts this package at risk right now.') }}
+            </p>
+            <ul v-else class="list-disc space-y-1 pl-5 text-sm">
+                <li v-for="(reason, index) in riskReasons" :key="index">
+                    {{ reason }}
+                </li>
+            </ul>
+            <p
+                v-if="flaggedBy"
+                class="text-sm text-muted-foreground"
+                data-test="risk-flagged-by"
+            >
+                {{ flaggedBy }}
+            </p>
+
+            <form
+                v-if="can.update"
+                class="space-y-3"
+                @submit.prevent="saveFlag"
+            >
+                <FormField
+                    id="risk_flag_reason"
+                    :label="$t('Reason for the high-risk flag')"
+                    :hint="
+                        risk.flag
+                            ? undefined
+                            : $t(
+                                  'Turns the package red, for example when a supplier is in trouble. Say why.',
+                              )
+                    "
+                    :error="flagForm.errors.reason"
+                >
+                    <Textarea
+                        id="risk_flag_reason"
+                        v-model="flagForm.reason"
+                        maxlength="500"
+                        rows="2"
+                        required
+                    />
+                </FormField>
+                <div class="flex flex-wrap gap-2">
+                    <Button
+                        type="submit"
+                        variant="outline"
+                        :disabled="flagForm.processing"
+                    >
+                        <Spinner v-if="flagForm.processing" />
+                        <Flag v-else />
+                        {{
+                            risk.flag
+                                ? $t('Save reason')
+                                : $t('Flag as high risk')
+                        }}
+                    </Button>
+                    <Button
+                        v-if="risk.flag"
+                        type="button"
+                        variant="ghost"
+                        @click="clearFlag"
+                    >
+                        {{ $t('Clear flag') }}
+                    </Button>
+                </div>
+            </form>
+        </section>
 
         <section class="space-y-4" :aria-label="$t('Milestones')">
             <div class="flex flex-wrap items-start justify-between gap-4">

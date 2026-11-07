@@ -113,7 +113,7 @@ class ProjectManagementTest extends TestCase
                 ->where('description', 'About the project')
                 ->where('team.0', ['role' => 'Project manager', 'count' => 1])
                 ->where('team.3', ['role' => 'Viewer', 'count' => 1])
-                ->where('risk', ['amberDays' => 14, 'redDays' => 0])
+                ->where('risk', ['amberDays' => 7, 'redDays' => 0])
                 ->where('exampleNumbers', ['package' => 'P100-ELE-0001', 'subPackage' => 'P100-ELE-0001.01']));
     }
 

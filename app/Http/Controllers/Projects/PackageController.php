@@ -3,20 +3,26 @@
 namespace App\Http\Controllers\Projects;
 
 use App\Actions\Packages\CreatePackage;
+use App\Actions\Packages\NotifyNewPackageAssignees;
 use App\Enums\PackageStatus;
 use App\Enums\ProjectRole;
 use App\Enums\PurchaseType;
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\PackageListRisk;
 use App\Http\Presenters\PackageListSchedule;
+use App\Http\Presenters\PackageRiskOverview;
 use App\Http\Presenters\PackageScheduleOverview;
 use App\Http\Presenters\ProjectHeader;
 use App\Http\Requests\Packages\StorePackageRequest;
 use App\Http\Requests\Packages\UpdatePackageRequest;
+use App\Jobs\CheckProjectRisks;
 use App\Models\Package;
 use App\Models\Project;
 use App\Models\ProjectCategory;
 use App\Models\User;
 use App\Policies\PackagePolicy;
+use App\Risk\ProjectRisks;
+use App\Scheduling\ProjectSchedules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -55,6 +61,8 @@ class PackageController extends Controller
             category: $this->chosenCategory($request, $project, $parent),
             parent: $parent,
         );
+        // Its first check only stores its level, so later changes have something to compare with.
+        CheckProjectRisks::dispatch($project->id, $request->user()->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Package :number added.', ['number' => $package->number])]);
 
@@ -86,6 +94,7 @@ class PackageController extends Controller
             ],
             'ancestors' => $this->ancestors($project, $package),
             'schedule' => PackageScheduleOverview::for($project, $package),
+            'risk' => PackageRiskOverview::for($project, $package),
             'subPackages' => $this->subPackages($package),
             'categories' => $this->categories($project),
             'can' => [
@@ -129,7 +138,7 @@ class PackageController extends Controller
         ]);
     }
 
-    public function update(UpdatePackageRequest $request, Project $project, Package $package): RedirectResponse
+    public function update(UpdatePackageRequest $request, Project $project, Package $package, NotifyNewPackageAssignees $notifyNewAssignees): RedirectResponse
     {
         $package->fill($request->safe()->except(['owner_id', 'buyer_id']));
 
@@ -143,6 +152,8 @@ class PackageController extends Controller
         }
 
         $package->save();
+        $notifyNewAssignees->handle($package, $request->user());
+        CheckProjectRisks::dispatch($project->id, $request->user()->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Package saved.')]);
 
@@ -161,19 +172,18 @@ class PackageController extends Controller
         /** @var PackagePolicy $policy */
         $policy = Gate::getPolicyFor(Package::class);
 
-        $rows = DB::table('packages')
+        // The risk rules' query, with the list's own columns added, so the rows are read once.
+        $rows = ProjectRisks::packageRows($project)
             ->leftJoin('project_categories as categories', 'categories.id', '=', 'packages.category_id')
-            ->leftJoin('users as owners', 'owners.id', '=', 'packages.owner_id')
-            ->leftJoin('users as buyers', 'buyers.id', '=', 'packages.buyer_id')
-            ->where('packages.project_id', $project->id)
-            ->orderBy('packages.number_path')
-            ->get([
-                'packages.id', 'packages.parent_id', 'packages.number', 'packages.title', 'packages.status',
-                'packages.purchase_type', 'packages.owner_id', 'packages.category_id',
+            ->addSelect([
+                'packages.number', 'packages.title', 'packages.purchase_type', 'packages.category_id',
                 DB::raw('array_length(packages.number_path, 1) - 1 as depth'),
                 'categories.code as category_code', 'owners.name as owner_name', 'buyers.name as buyer_name',
-            ]);
-        $schedules = PackageListSchedule::for($project, $rows);
+            ])
+            ->get();
+        $schedules = ProjectSchedules::for($project, $rows);
+        $columns = PackageListSchedule::for($schedules);
+        $risks = ProjectRisks::fromRows($project, $rows, $schedules);
 
         return $rows
             ->map(fn (object $row) => (object) [
@@ -190,7 +200,8 @@ class PackageController extends Controller
                 'buyerName' => $row->buyer_name,
                 // Asked directly instead of through Gate: the same rule, several times faster for thousands of rows.
                 'canEdit' => $policy->updateOwnedBy($user, $project, $row->owner_id),
-                ...$schedules[$row->id],
+                'risk' => PackageListRisk::for($risks[$row->id], $row->risk_flag_reason, $schedules),
+                ...$columns[$row->id],
             ])
             ->all();
     }

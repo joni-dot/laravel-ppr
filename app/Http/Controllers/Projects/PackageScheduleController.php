@@ -6,6 +6,7 @@ use App\Actions\Packages\UpdatePackageMilestones;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\ProjectHeader;
 use App\Http\Requests\Packages\UpdatePackageScheduleRequest;
+use App\Jobs\CheckProjectRisks;
 use App\Models\Package;
 use App\Models\Project;
 use App\Models\ProjectMilestone;
@@ -46,6 +47,7 @@ class PackageScheduleController extends Controller
             $request->milestoneRows(),
             mayChangePlannedDates: $request->user()->can('changePlannedDates', [Package::class, $project]),
         );
+        CheckProjectRisks::dispatch($project->id, $request->user()->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Dates saved.')]);
 

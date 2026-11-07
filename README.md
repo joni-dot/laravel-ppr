@@ -96,6 +96,26 @@ For trying lists with realistic amounts of data, `./vendor/bin/sail artisan db:s
 
 The package list shows each package's **next milestone** (the first one without an actual date) with its expected date, the need date, the expected need date including sub-packages, and the float ("−5 d" in red when late). The rules live in one place only, `app/Scheduling/PackageSchedule.php`; pages and lists only show its results.
 
+## Risk levels
+
+Each package is **red**, **amber** or not at risk. The level is worked out every time a page asks, never stored, so it always matches the dates. It is the worst of these reasons:
+
+| Reason                                                                              | Level |
+| ----------------------------------------------------------------------------------- | ----- |
+| Flagged as high risk by hand, with a reason                                         | Red   |
+| Overdue: a milestone without an actual date was expected before today (UTC)         | Red   |
+| Float (counting sub-packages, as the list shows it) below the project's red warning | Red   |
+| Float below the project's amber warning                                             | Amber |
+| No planned need date, so the float can't be judged                                  | Amber |
+| No package owner or responsible buyer, or theirs is deactivated                     | Amber |
+
+- "Below" means the number itself is still fine: with amber at 7 days, 7 days to spare is not at risk and 6 is amber. A package with only a planned need date is expected exactly then, so it has no days to spare and is amber under the company defaults (amber below 7 days, red below 0).
+- Closed and cancelled packages are never at risk.
+- Only the float rolls up from sub-packages. A sub-package's overdue milestone or missing buyer makes the sub-package amber or red, not its parent.
+- Anyone who may edit a package can flag it as high risk on its page (reason up to 500 characters), change the reason and clear the flag. The page shows who flagged it and when.
+
+The package list has a **Risk** column (hover or a screen reader gives the reasons) and a filter for packages at risk (amber or red) or red only. The rules live in one place only, `app/Risk/PackageRisk.php`; `App\Risk\ProjectRisks::for($project)` works out every package of a project with three queries.
+
 ## Package numbers
 
 Each project has its own numbering, set by its project manager on the project's **Numbering** page:
@@ -109,6 +129,26 @@ Each project has its own numbering, set by its project manager on the project's 
 - Categories (for example `ELE Electrical`) belong to one project. Project and category codes use only letters and digits, so they can never be mistaken for a separator.
 
 The rules live in `app/Numbering/PackageNumberFormat.php`. The numbering page shows a live preview made by `resources/js/lib/packageNumber.ts`, and a browser test checks that both give the same result.
+
+## Notifications
+
+The bell at the top of every page shows how many unread notifications a person has and opens the **Notifications** page, newest first. Opening a notification goes to its package and marks it as read; **Mark as read** and **Mark all as read** do the same without leaving the page. Notifications are shown only in the app, not sent by email.
+
+| Notification       | Who gets it                                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| You were assigned  | The person who becomes a package's owner or responsible buyer, unless they made the change themselves            |
+| Date coming up     | The package's owner and buyer, when a milestone's expected date is within their own notification period          |
+| Date overdue       | The package's owner and buyer, the day after a milestone's expected date has passed without an actual date       |
+| Risk level changed | The project's managers and the package owner, when the package's level changes either way, unless they caused it |
+
+- Each person sets on **Settings → Notifications** how many days ahead they want to hear about their packages' coming dates: 0 to 90, 7 at first, and 0 turns these reminders off. Overdue dates are still reported.
+- **Risk changes** are noticed by a background check of the whole project, which runs right after every save that can change a package's risk (a package, its dates or risk flag, the risk warnings, the milestone list, a member's role, deactivating someone) and once a day for what time changes. The app remembers the level people were last told about (`packages.notified_risk_level`). The first check of a package, for example a new one, only stores its level, so nobody gets a flood of notifications.
+- **Date reminders** are sent by the daily check only, at 04:00 UTC (early morning in Finland), so nobody is reminded of a date they have just typed. "Today" is the UTC date. Closed and cancelled packages, milestones with an actual date and milestones without a date get none. Each reminder is sent once per person, package, milestone, kind and expected date (`sent_reminders`); when the expected date moves, the new date gets its own reminder. Dates that are already overdue when a package is first checked are recorded as reminded without telling anyone: the red risk badge already shows them.
+- The daily check is `sail artisan packages:check-risks`, run by the `scheduler` container. It queues one job per project (`App\Jobs\CheckProjectRisks`), which takes the same number of queries however many packages the project has.
+- Only active people get notifications, and only about projects they can see. Someone who leaves a project no longer sees its notifications, and they don't count in the bell; admins see all of theirs.
+- Notifications are private: nobody else, not even an admin, can open or mark someone's notifications.
+- They are sent in the background by the `queue` container.
+- For developers: each kind is a class extending `app/Notifications/PackageNotification.php`, which describes how every notification is stored, plus one message line in `resources/js/components/notifications/notificationMessages.ts`.
 
 ## Languages
 
@@ -128,7 +168,7 @@ The interface is in English, built so that other languages can be added later wi
 2. Projects, project members and numbering schemes _(done)_
 3. Packages and sub-packages, with quick adding _(done)_
 4. Milestones (planned, forecast, actual dates) and delivery calculation from lead times _(done)_
-5. Risk levels and in-app notifications
+5. Risk levels and in-app notifications _(done)_
 6. Dashboard and visuals
 7. Merging and dividing packages, with full history
 8. Supplier link to the SRM app, Excel export

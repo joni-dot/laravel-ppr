@@ -22,4 +22,5 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__.'/projects.php';
 require __DIR__.'/settings.php';
+require __DIR__.'/notifications.php';
 require __DIR__.'/admin.php';

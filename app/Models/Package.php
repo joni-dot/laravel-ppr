@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 
 /**
@@ -32,6 +33,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $quantity
  * @property string|null $unit
  * @property string|null $notes
+ * @property string|null $risk_flag_reason
+ * @property int|null $risk_flagged_by_id
+ * @property Carbon|null $risk_flagged_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -57,6 +61,7 @@ class Package extends Model
             'status' => PackageStatus::class,
             'purchase_type' => PurchaseType::class,
             'quantity' => 'decimal:3',
+            'risk_flagged_at' => 'datetime',
         ];
     }
 
@@ -109,6 +114,16 @@ class Package extends Model
     }
 
     /**
+     * Who last marked the package as high risk by hand.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function riskFlaggedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'risk_flagged_by_id');
+    }
+
+    /**
      * This package's dates and lead times, one row per project milestone that has any.
      *
      * @return HasMany<PackageMilestone, $this>
@@ -140,5 +155,23 @@ class Package extends Model
         }
 
         return $paths;
+    }
+
+    /**
+     * Limits a query on the packages table to this package and every package below it at any depth.
+     * Number paths sort like the tree, so everything under [3, 2] lies between [3, 2] and [3, 3],
+     * and the project's number path index finds it.
+     */
+    public function limitToItsTree(QueryBuilder $query): QueryBuilder
+    {
+        $path = $this->number_path;
+        $nextSiblingPath = [...array_slice($path, 0, -1), $path[count($path) - 1] + 1];
+
+        return $query
+            ->where('packages.project_id', $this->project_id)
+            ->whereRaw('packages.number_path >= ?::integer[] and packages.number_path < ?::integer[]', [
+                '{'.implode(',', $path).'}',
+                '{'.implode(',', $nextSiblingPath).'}',
+            ]);
     }
 }

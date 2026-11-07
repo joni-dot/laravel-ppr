@@ -39,6 +39,49 @@ export type PackageRow = {
     expectedNeedDate: string | null;
     // Days from the expected need date to the need date: below zero is late.
     floatDays: number | null;
+    // Nothing when the package isn't at risk.
+    risk: PackageListRisk | null;
+};
+
+export type RiskLevel = 'none' | 'amber' | 'red';
+
+// In the order pages list them, most serious kind first. See app/Risk/RiskReason.php.
+export type RiskReason =
+    | 'manual_flag'
+    | 'overdue'
+    | 'late'
+    | 'no_need_date'
+    | 'no_owner'
+    | 'owner_deactivated'
+    | 'no_buyer'
+    | 'buyer_deactivated';
+
+/**
+ * The risk column of the package list. The server works it out; details come only where a reason needs them.
+ */
+export type PackageListRisk = {
+    level: Exclude<RiskLevel, 'none'>;
+    reasons: RiskReason[];
+    overdueMilestone?: string;
+    flagReason?: string;
+};
+
+/**
+ * A package's risk on its own page.
+ */
+export type PackageRiskOverview = {
+    level: RiskLevel;
+    reasons: RiskReason[];
+    // Counting sub-packages, as the package list shows it.
+    floatDays: number | null;
+    thresholds: { amberDays: number; redDays: number };
+    overdueMilestone: { name: string; expected: string | null } | null;
+    // Kept even when the package is closed, so it can still be cleared.
+    flag: {
+        reason: string;
+        flaggedByName: string | null;
+        flaggedAt: string | null;
+    } | null;
 };
 
 export type PackageLink = {
