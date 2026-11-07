@@ -27,7 +27,7 @@ class SettingsTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())
             ->get(route('admin.settings.edit'))
             ->assertInertia(fn ($page) => $page
-                ->where('riskAmberDays', 14)
+                ->where('riskAmberDays', 7)
                 ->where('riskRedDays', 0));
     }
 

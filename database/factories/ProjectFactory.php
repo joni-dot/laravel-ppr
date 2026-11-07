@@ -23,7 +23,7 @@ class ProjectFactory extends Factory
             'name' => fake()->city().' '.fake()->randomElement(['plant', 'extension', 'upgrade', 'line']),
             'code' => 'P'.fake()->unique()->numberBetween(100, 99999),
             'description' => null,
-            'risk_amber_days' => 14,
+            'risk_amber_days' => 7,
             'risk_red_days' => 0,
         ];
     }
