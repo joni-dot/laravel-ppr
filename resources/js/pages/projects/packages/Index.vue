@@ -10,9 +10,11 @@ import ProjectLayout from '@/components/projects/ProjectLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
+import { formatDate } from '@/lib/format';
 import { trans } from '@/lib/i18n';
 import { packagesWithChildren, visiblePackageRows } from '@/lib/packageTree';
 import { projectBreadcrumbs } from '@/lib/projectBreadcrumbs';
+import { floatInWords, floatShort } from '@/lib/scheduleFloat';
 import type {
     Option,
     PackageRow,
@@ -117,6 +119,10 @@ function startAddingUnder(row: PackageRow): void {
     }
 
     addingUnder.value = row;
+}
+
+function dateOrDash(date: string | null): string {
+    return date === null ? '–' : formatDate(date);
 }
 
 function clearFilters(): void {
@@ -251,6 +257,21 @@ function clearFilters(): void {
                             {{ $t('Status') }}
                         </th>
                         <th scope="col" class="px-4 py-3 font-medium">
+                            {{ $t('Next milestone') }}
+                        </th>
+                        <th scope="col" class="px-4 py-3 font-medium">
+                            {{ $t('Need date') }}
+                        </th>
+                        <th scope="col" class="px-4 py-3 font-medium">
+                            {{ $t('Expected') }}
+                        </th>
+                        <th
+                            scope="col"
+                            class="px-4 py-3 text-right font-medium"
+                        >
+                            {{ $t('Float') }}
+                        </th>
+                        <th scope="col" class="px-4 py-3 font-medium">
                             {{ $t('Type') }}
                         </th>
                         <th scope="col" class="px-4 py-3 font-medium">
@@ -332,6 +353,47 @@ function clearFilters(): void {
                             <td class="px-4 py-2">
                                 <PackageStatusBadge :status="row.status" />
                             </td>
+                            <td class="min-w-40 px-4 py-2">
+                                <template v-if="row.nextMilestoneName">
+                                    <div>{{ row.nextMilestoneName }}</div>
+                                    <div
+                                        v-if="row.nextMilestoneDate"
+                                        class="text-xs whitespace-nowrap text-muted-foreground"
+                                    >
+                                        {{ formatDate(row.nextMilestoneDate) }}
+                                    </div>
+                                </template>
+                                <template v-else>–</template>
+                            </td>
+                            <td class="px-4 py-2 whitespace-nowrap">
+                                {{ dateOrDash(row.needDate) }}
+                            </td>
+                            <td class="px-4 py-2 whitespace-nowrap">
+                                {{ dateOrDash(row.expectedNeedDate) }}
+                            </td>
+                            <td
+                                class="px-4 py-2 text-right whitespace-nowrap tabular-nums"
+                                :class="{
+                                    'text-destructive':
+                                        row.floatDays !== null &&
+                                        row.floatDays < 0,
+                                }"
+                            >
+                                <template v-if="row.floatDays === null">
+                                    –
+                                </template>
+                                <span
+                                    v-else
+                                    :title="floatInWords(row.floatDays)"
+                                >
+                                    <span aria-hidden="true">{{
+                                        floatShort(row.floatDays)
+                                    }}</span>
+                                    <span class="sr-only">{{
+                                        floatInWords(row.floatDays)
+                                    }}</span>
+                                </span>
+                            </td>
                             <td class="px-4 py-2">
                                 {{
                                     row.purchaseType
@@ -382,7 +444,7 @@ function clearFilters(): void {
                             </td>
                         </tr>
                         <tr v-if="addingUnder?.id === row.id">
-                            <td colspan="7" class="bg-muted/30 px-4 py-3">
+                            <td colspan="11" class="bg-muted/30 px-4 py-3">
                                 <div
                                     :style="{
                                         paddingLeft: `${(row.depth + 1) * 1.25}rem`,
@@ -403,7 +465,7 @@ function clearFilters(): void {
                     </template>
                     <tr v-if="rows.length === 0">
                         <td
-                            colspan="7"
+                            colspan="11"
                             class="px-4 py-10 text-center text-muted-foreground"
                         >
                             {{

@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\Projects\MoveProjectMilestoneController;
 use App\Http\Controllers\Projects\PackageController;
+use App\Http\Controllers\Projects\PackageScheduleController;
 use App\Http\Controllers\Projects\ProjectCategoryController;
 use App\Http\Controllers\Projects\ProjectController;
 use App\Http\Controllers\Projects\ProjectMemberController;
+use App\Http\Controllers\Projects\ProjectMilestoneController;
 use App\Http\Controllers\Projects\ProjectNumberingController;
 use App\Models\Package;
 use App\Models\Project;
@@ -13,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth')
     ->prefix('projects')
     ->name('projects.')
-    ->where(['project' => '[0-9]+', 'category' => '[0-9]+', 'member' => '[0-9]+', 'package' => '[0-9]+'])
+    ->where(['project' => '[0-9]+', 'category' => '[0-9]+', 'member' => '[0-9]+', 'milestone' => '[0-9]+', 'package' => '[0-9]+'])
     ->group(function () {
         Route::get('/', [ProjectController::class, 'index'])
             ->can('viewAny', Project::class)
@@ -73,6 +76,26 @@ Route::middleware('auth')
                 ->can('manageMembers', 'project')
                 ->name('members.destroy');
 
+            Route::get('{project}/milestones', [ProjectMilestoneController::class, 'index'])
+                ->can('update', 'project')
+                ->name('milestones.index');
+
+            Route::post('{project}/milestones', [ProjectMilestoneController::class, 'store'])
+                ->can('update', 'project')
+                ->name('milestones.store');
+
+            Route::put('{project}/milestones/{milestone}', [ProjectMilestoneController::class, 'update'])
+                ->can('update', 'project')
+                ->name('milestones.update');
+
+            Route::delete('{project}/milestones/{milestone}', [ProjectMilestoneController::class, 'destroy'])
+                ->can('update', 'project')
+                ->name('milestones.destroy');
+
+            Route::patch('{project}/milestones/{milestone}/move', MoveProjectMilestoneController::class)
+                ->can('update', 'project')
+                ->name('milestones.move');
+
             Route::get('{project}/packages', [PackageController::class, 'index'])
                 ->can('view', 'project')
                 ->name('packages.index');
@@ -92,5 +115,13 @@ Route::middleware('auth')
             Route::put('{project}/packages/{package}', [PackageController::class, 'update'])
                 ->can('update', 'package')
                 ->name('packages.update');
+
+            Route::get('{project}/packages/{package}/schedule/edit', [PackageScheduleController::class, 'edit'])
+                ->can('update', 'package')
+                ->name('packages.schedule.edit');
+
+            Route::put('{project}/packages/{package}/schedule', [PackageScheduleController::class, 'update'])
+                ->can('update', 'package')
+                ->name('packages.schedule.update');
         });
     });

@@ -16,6 +16,9 @@ test('a viewer can look at packages but not add or edit them', async ({
     await expect(
         page.getByRole('link', { name: `Edit ${seededPackage.number}` }),
     ).toHaveCount(0);
+    await expect(
+        page.getByRole('columnheader', { name: 'Float', exact: true }),
+    ).toBeVisible();
 
     await page.getByRole('link', { name: seededPackage.title }).click();
     await expect(

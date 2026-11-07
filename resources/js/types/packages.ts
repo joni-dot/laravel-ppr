@@ -30,6 +30,15 @@ export type PackageRow = {
     ownerName: string | null;
     buyerName: string | null;
     canEdit: boolean;
+    // The first milestone that hasn't happened yet, and when it is expected.
+    nextMilestoneName: string | null;
+    nextMilestoneDate: string | null;
+    // The planned date of the project's need-date milestone.
+    needDate: string | null;
+    // The latest expected need date of this package and its sub-packages.
+    expectedNeedDate: string | null;
+    // Days from the expected need date to the need date: below zero is late.
+    floatDays: number | null;
 };
 
 export type PackageLink = {

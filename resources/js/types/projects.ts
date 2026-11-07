@@ -76,3 +76,14 @@ export type NumberingScheme = {
     subSeparator: NumberSeparator;
     subPadding: number;
 };
+
+/**
+ * A row on the milestone list a project manager edits.
+ */
+export type ManagedMilestone = {
+    id: number;
+    name: string;
+    isNeedDate: boolean;
+    // Packages that lose dates or a lead time if the milestone is removed.
+    packagesWithDatesCount: number;
+};

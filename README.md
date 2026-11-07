@@ -71,7 +71,30 @@ Each project's **Packages** tab shows all its packages as a tree that can be fol
 - Packages are never deleted, so their numbers stay unique; set the status to **Cancelled** instead. A category that packages use can't be removed.
 - The list sends the whole tree at once, so folding, searching and filtering need no server round trip. Its query count doesn't grow with the number of packages.
 
-For trying lists with realistic amounts of data, `./vendor/bin/sail artisan db:seed --class=DemoProjectSeeder` adds a made-up project with about 3,000 packages (it takes a couple of minutes, and refuses to run in production).
+For trying lists with realistic amounts of data, `./vendor/bin/sail artisan db:seed --class=DemoProjectSeeder` adds a made-up project with about 3,000 packages, most with milestone dates so some are late and some have time to spare (it takes a couple of minutes, and refuses to run in production).
+
+## Milestones and lead times
+
+**Milestone list.** Each project has its own list of milestones: the steps every package goes through. New projects start with Specification ready, Request for quotation sent, Offers received, Order placed, Delivered from supplier, Required on site and Installed / commissioned. Admins and the project's managers change the list on the project's **Milestones** tab: add (at the end, at most 30), rename (names are unique in the project, ignoring case), move up or down, and remove.
+
+- One milestone is the **need date**: when the project needs the package ("Required on site" at the start). To change it, make another milestone the need date; the need date itself can't be removed.
+- Removing a milestone also removes every package's dates and lead time for it. The tab shows how many packages have dates for each milestone, and the confirmation says how many will lose them.
+- A lead time is the number of days from the previous milestone, so moving a milestone changes what existing lead times mean.
+
+**A package's dates.** For every milestone a package has a planned, forecast and actual date and a lead time in calendar days. **Edit dates** on the package page changes them.
+
+- Anyone who may edit the package can change forecasts, actual dates and lead times, and can fill in an empty planned date. Once a planned date is set, only a project manager or admin can change or clear it, so the original plan stays visible.
+- Actual dates can't be in the future. "Today" is today where the date is furthest ahead (UTC+14), because the app doesn't know each person's time zone.
+- Dates must be between the years 2000 and 2100, and lead times between 0 and 3,650 days.
+
+**What the app works out:**
+
+- **Expected date** of each milestone: the actual date if it has happened, else the forecast, else the previous milestone's expected date plus the lead time, else the planned date. So a late order pushes every later milestone back.
+- **Latest date:** counting back from the need date with the lead times, the last day each earlier milestone can happen without making the package late. A missing lead time leaves the earlier latest dates unknown instead of guessing zero days.
+- **Float:** the days between the expected need date and the need date. "12 days to spare", or "5 days late" when it is below zero.
+- **Sub-packages:** a package isn't ready until its sub-packages are, so a parent also shows the latest expected date among itself and all its sub-packages, and the float that gives. Cancelled sub-packages are left out.
+
+The package list shows each package's **next milestone** (the first one without an actual date) with its expected date, the need date, the expected need date including sub-packages, and the float ("−5 d" in red when late). The rules live in one place only, `app/Scheduling/PackageSchedule.php`; pages and lists only show its results.
 
 ## Package numbers
 
@@ -104,7 +127,7 @@ The interface is in English, built so that other languages can be added later wi
 1. Base app: sign-in, users, settings, security _(done)_
 2. Projects, project members and numbering schemes _(done)_
 3. Packages and sub-packages, with quick adding _(done)_
-4. Milestones (planned, forecast, actual dates) and delivery calculation from lead times
+4. Milestones (planned, forecast, actual dates) and delivery calculation from lead times _(done)_
 5. Risk levels and in-app notifications
 6. Dashboard and visuals
 7. Merging and dividing packages, with full history

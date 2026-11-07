@@ -7,6 +7,8 @@ use App\Enums\PackageStatus;
 use App\Enums\ProjectRole;
 use App\Enums\PurchaseType;
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\PackageListSchedule;
+use App\Http\Presenters\PackageScheduleOverview;
 use App\Http\Presenters\ProjectHeader;
 use App\Http\Requests\Packages\StorePackageRequest;
 use App\Http\Requests\Packages\UpdatePackageRequest;
@@ -83,6 +85,7 @@ class PackageController extends Controller
                 'notes' => $package->notes,
             ],
             'ancestors' => $this->ancestors($project, $package),
+            'schedule' => PackageScheduleOverview::for($project, $package),
             'subPackages' => $this->subPackages($package),
             'categories' => $this->categories($project),
             'can' => [
@@ -158,7 +161,7 @@ class PackageController extends Controller
         /** @var PackagePolicy $policy */
         $policy = Gate::getPolicyFor(Package::class);
 
-        return DB::table('packages')
+        $rows = DB::table('packages')
             ->leftJoin('project_categories as categories', 'categories.id', '=', 'packages.category_id')
             ->leftJoin('users as owners', 'owners.id', '=', 'packages.owner_id')
             ->leftJoin('users as buyers', 'buyers.id', '=', 'packages.buyer_id')
@@ -169,7 +172,10 @@ class PackageController extends Controller
                 'packages.purchase_type', 'packages.owner_id', 'packages.category_id',
                 DB::raw('array_length(packages.number_path, 1) - 1 as depth'),
                 'categories.code as category_code', 'owners.name as owner_name', 'buyers.name as buyer_name',
-            ])
+            ]);
+        $schedules = PackageListSchedule::for($project, $rows);
+
+        return $rows
             ->map(fn (object $row) => (object) [
                 'id' => $row->id,
                 'parentId' => $row->parent_id,
@@ -184,6 +190,7 @@ class PackageController extends Controller
                 'buyerName' => $row->buyer_name,
                 // Asked directly instead of through Gate: the same rule, several times faster for thousands of rows.
                 'canEdit' => $policy->updateOwnedBy($user, $project, $row->owner_id),
+                ...$schedules[$row->id],
             ])
             ->all();
     }
