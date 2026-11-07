@@ -48,6 +48,9 @@ If a result makes no sense, Docker Desktop may have missed a quick file edit. Co
 - **Package numbers are never reused**, even after merging, dividing or closing a package. Only `AssignPackageNumber` gives numbers; it locks the project row and counts on from `projects.last_package_number` and `packages.last_sub_number`. Packages are never deleted.
 - **Package permissions live in `PackagePolicy`.** The package list checks thousands of rows through `updateOwnedBy()` directly, so change the rule there, not in the list.
 - **Numbering rules exist twice and must change together:** `app/Numbering/PackageNumberFormat.php` makes the real numbers and `resources/js/lib/packageNumber.ts` shows the live preview. The browser test in `tests/Browser/admin/projects.spec.ts` fails if they disagree.
+- **Milestone date rules live only in `app/Scheduling`.** `PackageSchedule` works out expected and latest dates and float; `SubPackageRollUp` rolls dates up to parents. Pages and lists show its results; never recalculate dates in Vue or in a controller.
+- **Planned dates are the original plan.** Once set, only project managers and admins change them (`PackagePolicy::changePlannedDates`). The form request and `UpdatePackageMilestones` both enforce it.
+- **A project always has exactly one need-date milestone.** `MakeMilestoneTheNeedDate` moves it under a project lock, and the need date can't be removed.
 - **A project always keeps a project manager.** `EnsureProjectKeepsManager` refuses to demote or remove the last one.
 - **Merging and dividing must stay traceable.** Keep the history of which packages became which.
 - **Records are kept.** Users are deactivated, never deleted.
