@@ -70,6 +70,7 @@ Each project's **Packages** tab shows all its packages as a tree that can be fol
 - A top-level package needs a category when category codes are part of the project's numbers.
 - Packages are never deleted, so their numbers stay unique; set the status to **Cancelled** instead. A category that packages use can't be removed.
 - The list sends the whole tree at once, so folding, searching and filtering need no server round trip. Its query count doesn't grow with the number of packages.
+- The browser draws only the rows on screen and a few around them, so a list of thousands of packages opens and scrolls quickly. The browser's own find (Ctrl+F) therefore finds only drawn rows; the list's search box finds every package.
 
 For trying lists with realistic amounts of data, `./vendor/bin/sail artisan db:seed --class=DemoProjectSeeder` adds a made-up project with about 3,000 packages, most with milestone dates so some are late and some have time to spare (it takes a couple of minutes, and refuses to run in production).
 

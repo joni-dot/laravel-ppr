@@ -47,7 +47,7 @@ bin/sync-check --fix                     # see above
 ## Rules for every change
 
 - **Security must be flawless.** Follow the security rules in the README.
-- **Performance is a top priority.** Avoid repeated queries in lists, and check new lists and filters against realistic demo data (thousands of packages).
+- **Performance is a top priority.** Avoid repeated queries in lists, and check new lists and filters against realistic demo data (thousands of packages). Long lists draw only the rows on screen (see `PackageTreeTable.vue`). Don't use CSS `:has()` rules such as Tailwind's `has-*` and `group-has-*` on elements that wrap the page: the browser re-checks them after every change, which made scrolling the package list stutter.
 - **Code explains itself** through clear names and small functions. Comments are for why, not what.
 - **Controllers follow CRUD where it makes sense.** Use only `index`, `create`, `store`, `show`, `edit`, `update` and `destroy`, and leave out the ones a feature doesn't need. An action that doesn't fit CRUD, or a controller that would have only one method, becomes a single-action controller named verb + noun (for example `MergePackagesController`).
 - **Action classes are single-action.** Each class in `app/Actions` is named verb + noun and has one public `handle()` method, except where a framework interface requires another name (Fortify's `reset()`). An action that needs another action receives it through its constructor.
