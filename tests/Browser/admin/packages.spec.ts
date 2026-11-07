@@ -173,10 +173,12 @@ test('the list shows when a package is needed and how late it is', async ({
     await expect(page.getByText(/Package PP3-ELE-\d+ added\./)).toBeVisible();
 
     const valves = page.getByRole('row', { name: /Valve set/ });
-    await expect(valves.getByRole('cell').nth(3)).toHaveText(
+    await expect(valves.getByRole('cell').nth(4)).toHaveText(
         'Specification ready',
     );
-    await expect(valves.getByRole('cell').nth(6)).toHaveText('–');
+    await expect(valves.getByRole('cell').nth(7)).toHaveText('–');
+    // No need date, owner or buyer yet.
+    await expect(valves.getByRole('cell').nth(3)).toContainText('Amber');
 
     await page.getByRole('link', { name: 'Valve set' }).click();
     await page.getByRole('link', { name: 'Edit dates' }).click();
@@ -196,9 +198,13 @@ test('the list shows when a package is needed and how late it is', async ({
         ).toBeVisible();
     }
     const cells = valves.getByRole('cell');
-    await expect(cells.nth(4)).toHaveText(await shownDate(page, '2027-06-30'));
-    await expect(cells.nth(5)).toHaveText(await shownDate(page, '2027-07-05'));
-    await expect(cells.nth(6).getByText('−5 d', { exact: true })).toBeVisible();
-    await expect(cells.nth(6).getByText('5 days late')).toBeAttached();
-    await expect(cells.nth(6)).toHaveClass(/text-destructive/);
+    await expect(cells.nth(5)).toHaveText(await shownDate(page, '2027-06-30'));
+    await expect(cells.nth(6)).toHaveText(await shownDate(page, '2027-07-05'));
+    await expect(cells.nth(7).getByText('−5 d', { exact: true })).toBeVisible();
+    await expect(cells.nth(7).getByText('5 days late')).toBeAttached();
+    await expect(cells.nth(7)).toHaveClass(/text-destructive/);
+    await expect(cells.nth(3)).toContainText('Red');
+    await expect(cells.nth(3)).toContainText(
+        'Late: expected 5 days after the need date',
+    );
 });
