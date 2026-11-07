@@ -157,7 +157,7 @@
     "Users": "Users",
     "Verify authentication code": "Verify authentication code",
     "View recovery codes": "View recovery codes",
-    "We'll email them a link to set their password. The link works for 3 days.": "We'll email them a link to set their password. The link works for 3 days.",
+    "We'll email them a link to set their password. The link works for :days days.": "We'll email them a link to set their password. The link works for :days days.",
     "Welcome aboard": "Welcome aboard",
     "When you enable two-factor authentication, you will be prompted for a secure pin during login. This pin can be retrieved from a TOTP-supported application on your phone.": "When you enable two-factor authentication, you will be prompted for a secure pin during login. This pin can be retrieved from a TOTP-supported application on your phone.",
     "You are invited to :app": "You are invited to :app",

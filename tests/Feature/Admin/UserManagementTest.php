@@ -73,6 +73,15 @@ class UserManagementTest extends TestCase
             );
     }
 
+    public function test_the_invite_dialog_shows_how_long_the_link_really_works()
+    {
+        config(['auth.passwords.invitations.expire' => 60 * 24 * 5]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->get(route('admin.users.index'))
+            ->assertInertia(fn ($page) => $page->where('invitationLifetimeInDays', 5));
+    }
+
     public function test_admin_can_search_users_by_name_or_email()
     {
         $admin = User::factory()->admin()->create(['name' => 'Ada Admin', 'email' => 'ada@example.com']);

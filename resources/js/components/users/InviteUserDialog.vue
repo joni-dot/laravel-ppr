@@ -23,6 +23,7 @@ import type { RoleOption } from '@/types';
 
 defineProps<{
     roles: RoleOption[];
+    invitationLifetimeInDays: number;
 }>();
 
 const isOpen = ref(false);
@@ -48,7 +49,8 @@ const isOpen = ref(false);
                     <DialogDescription>
                         {{
                             $t(
-                                "We'll email them a link to set their password. The link works for 3 days.",
+                                "We'll email them a link to set their password. The link works for :days days.",
+                                { days: invitationLifetimeInDays },
                             )
                         }}
                     </DialogDescription>

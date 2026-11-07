@@ -14,8 +14,15 @@ class UserInvitation extends Notification implements ShouldQueue
 
     public function __construct(
         private readonly string $token,
-        private readonly int $expiresInDays,
     ) {}
+
+    /**
+     * How long an invitation link works. The invite dialog shows the same number.
+     */
+    public static function linkLifetimeInDays(): int
+    {
+        return intdiv(config('auth.passwords.invitations.expire'), 60 * 24);
+    }
 
     /**
      * @return list<string>
@@ -36,6 +43,6 @@ class UserInvitation extends Notification implements ShouldQueue
                 'token' => $this->token,
                 'email' => $notifiable->email,
             ]))
-            ->line(__('This link expires in :days days.', ['days' => $this->expiresInDays]));
+            ->line(__('This link expires in :days days.', ['days' => self::linkLifetimeInDays()]));
     }
 }
