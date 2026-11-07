@@ -32,6 +32,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property CarbonImmutable|null $deactivated_at
+ * @property int $notification_days
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -72,6 +73,7 @@ class User extends Authenticatable implements PasskeyUser
             'two_factor_confirmed_at' => 'datetime',
             'role' => Role::class,
             'deactivated_at' => 'datetime',
+            'notification_days' => 'integer',
         ];
     }
 

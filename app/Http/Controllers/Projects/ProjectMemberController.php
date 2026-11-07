@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Presenters\ProjectHeader;
 use App\Http\Requests\Projects\StoreProjectMemberRequest;
 use App\Http\Requests\Projects\UpdateProjectMemberRequest;
+use App\Jobs\CheckProjectRisks;
 use App\Models\Project;
 use App\Models\ProjectMember;
 use App\Models\User;
@@ -60,15 +61,19 @@ class ProjectMemberController extends Controller
     public function update(UpdateProjectMemberRequest $request, Project $project, ProjectMember $member, ChangeProjectMemberRole $changeRole): RedirectResponse
     {
         $changeRole->handle($member, $request->enum('role', ProjectRole::class));
+        // A new role can take the person off packages they owned or bought.
+        CheckProjectRisks::dispatch($project->id, $request->user()->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Role changed.')]);
 
         return back();
     }
 
-    public function destroy(Project $project, ProjectMember $member, RemoveProjectMember $removeMember): RedirectResponse
+    public function destroy(Request $request, Project $project, ProjectMember $member, RemoveProjectMember $removeMember): RedirectResponse
     {
         $removeMember->handle($member);
+        // Removing someone takes them off the packages they owned or bought.
+        CheckProjectRisks::dispatch($project->id, $request->user()->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member removed.')]);
 

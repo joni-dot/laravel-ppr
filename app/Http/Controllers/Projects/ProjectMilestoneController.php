@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Presenters\ProjectHeader;
 use App\Http\Requests\Projects\StoreProjectMilestoneRequest;
 use App\Http\Requests\Projects\UpdateProjectMilestoneRequest;
+use App\Jobs\CheckProjectRisks;
 use App\Models\Project;
 use App\Models\ProjectMilestone;
 use Illuminate\Http\RedirectResponse;
@@ -44,6 +45,7 @@ class ProjectMilestoneController extends Controller
     public function store(StoreProjectMilestoneRequest $request, Project $project, AddProjectMilestone $addMilestone): RedirectResponse
     {
         $addMilestone->handle($project, $request->validated('name'));
+        CheckProjectRisks::dispatch($project->id, $request->user()->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Milestone added.')]);
 
@@ -65,6 +67,10 @@ class ProjectMilestoneController extends Controller
             }
         });
 
+        if ($becomesNeedDate) {
+            CheckProjectRisks::dispatch($project->id, $request->user()->id);
+        }
+
         $message = $becomesNeedDate
             ? __(':name is now the need date.', ['name' => $milestone->name])
             : __('Milestone saved.');
@@ -73,9 +79,10 @@ class ProjectMilestoneController extends Controller
         return back();
     }
 
-    public function destroy(Project $project, ProjectMilestone $milestone, RemoveProjectMilestone $removeMilestone): RedirectResponse
+    public function destroy(Request $request, Project $project, ProjectMilestone $milestone, RemoveProjectMilestone $removeMilestone): RedirectResponse
     {
         $removeMilestone->handle($milestone);
+        CheckProjectRisks::dispatch($project->id, $request->user()->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Milestone removed.')]);
 

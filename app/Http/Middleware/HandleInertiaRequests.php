@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Notification;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -47,6 +48,10 @@ class HandleInertiaRequests extends Middleware
                     'manageSettings' => (bool) $request->user()?->can('manage', Setting::class),
                 ],
             ],
+            // A closure, so partial reloads that don't ask for it skip the query.
+            'unreadNotificationCount' => fn () => $request->user()
+                ? Notification::query()->visibleTo($request->user())->whereNull('read_at')->count()
+                : 0,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

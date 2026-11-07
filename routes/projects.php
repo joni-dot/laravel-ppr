@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Projects\MoveProjectMilestoneController;
 use App\Http\Controllers\Projects\PackageController;
+use App\Http\Controllers\Projects\PackageRiskFlagController;
 use App\Http\Controllers\Projects\PackageScheduleController;
 use App\Http\Controllers\Projects\ProjectCategoryController;
 use App\Http\Controllers\Projects\ProjectController;
@@ -123,5 +124,13 @@ Route::middleware('auth')
             Route::put('{project}/packages/{package}/schedule', [PackageScheduleController::class, 'update'])
                 ->can('update', 'package')
                 ->name('packages.schedule.update');
+
+            Route::post('{project}/packages/{package}/risk-flag', [PackageRiskFlagController::class, 'store'])
+                ->can('update', 'package')
+                ->name('packages.risk-flag.store');
+
+            Route::delete('{project}/packages/{package}/risk-flag', [PackageRiskFlagController::class, 'destroy'])
+                ->can('update', 'package')
+                ->name('packages.risk-flag.destroy');
         });
     });

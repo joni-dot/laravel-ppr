@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Pencil, Plus, Search } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import PackageController from '@/actions/App/Http/Controllers/Projects/PackageController';
 import ProjectNumberingController from '@/actions/App/Http/Controllers/Projects/ProjectNumberingController';
+import PackageRiskBadge from '@/components/packages/PackageRiskBadge.vue';
 import PackageStatusBadge from '@/components/packages/PackageStatusBadge.vue';
 import QuickAddPackage from '@/components/packages/QuickAddPackage.vue';
 import ProjectLayout from '@/components/projects/ProjectLayout.vue';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { formatDate } from '@/lib/format';
 import { trans } from '@/lib/i18n';
+import { riskReasonInWords } from '@/lib/packageRisk';
 import { packagesWithChildren, visiblePackageRows } from '@/lib/packageTree';
 import { projectBreadcrumbs } from '@/lib/projectBreadcrumbs';
 import { floatInWords, floatShort } from '@/lib/scheduleFloat';
@@ -45,6 +47,8 @@ const props = defineProps<{
 const search = ref('');
 const statusFilter = ref<PackageStatus | ''>('');
 const categoryFilter = ref<number | ''>('');
+// "atRisk" is amber or red.
+const riskFilter = ref<'' | 'atRisk' | 'red'>('');
 const folded = ref(new Set<number>());
 const addingUnder = ref<PackageRow | null>(null);
 
@@ -58,7 +62,8 @@ const isFiltering = computed(
     () =>
         search.value.trim() !== '' ||
         statusFilter.value !== '' ||
-        categoryFilter.value !== '',
+        categoryFilter.value !== '' ||
+        riskFilter.value !== '',
 );
 
 const rows = computed(() =>
@@ -76,6 +81,16 @@ const matchingIds = computed(() =>
         : null,
 );
 
+// Worked out once per list, not on every render: the list can have thousands of rows.
+const riskInWords = computed(
+    () =>
+        new Map(
+            props.packages
+                .filter((row) => row.risk !== null)
+                .map((row) => [row.id, riskSummary(row)]),
+        ),
+);
+
 const cannotAddWithoutCategory = computed(
     () => props.categoryRequired && props.categories.length === 0,
 );
@@ -89,8 +104,39 @@ function rowMatchesFilters(row: PackageRow): boolean {
                 text?.toLocaleLowerCase().includes(term),
             )) &&
         (statusFilter.value === '' || row.status === statusFilter.value) &&
-        (categoryFilter.value === '' || row.categoryId === categoryFilter.value)
+        (categoryFilter.value === '' ||
+            row.categoryId === categoryFilter.value) &&
+        rowMatchesRiskFilter(row)
     );
+}
+
+function rowMatchesRiskFilter(row: PackageRow): boolean {
+    switch (riskFilter.value) {
+        case '':
+            return true;
+        case 'atRisk':
+            return row.risk !== null;
+        case 'red':
+            return row.risk?.level === 'red';
+    }
+}
+
+function riskSummary(row: PackageRow): string {
+    if (row.risk === null) {
+        return '';
+    }
+
+    const { reasons, overdueMilestone, flagReason } = row.risk;
+
+    return reasons
+        .map((reason) =>
+            riskReasonInWords(reason, {
+                floatDays: row.floatDays,
+                overdueMilestone,
+                flagReason,
+            }),
+        )
+        .join('; ');
 }
 
 function toggleFolded(row: PackageRow): void {
@@ -129,6 +175,7 @@ function clearFilters(): void {
     search.value = '';
     statusFilter.value = '';
     categoryFilter.value = '';
+    riskFilter.value = '';
 }
 </script>
 
@@ -212,6 +259,17 @@ function clearFilters(): void {
                     }}
                 </option>
             </NativeSelect>
+            <NativeSelect
+                v-model="riskFilter"
+                :aria-label="$t('Filter by risk')"
+                class="w-56"
+            >
+                <option value="">{{ $t('All risk levels') }}</option>
+                <option value="atRisk">
+                    {{ $t('At risk (amber or red)') }}
+                </option>
+                <option value="red">{{ $t('Red only') }}</option>
+            </NativeSelect>
             <Button
                 v-if="isFiltering"
                 variant="ghost"
@@ -255,6 +313,9 @@ function clearFilters(): void {
                         </th>
                         <th scope="col" class="px-4 py-3 font-medium">
                             {{ $t('Status') }}
+                        </th>
+                        <th scope="col" class="px-4 py-3 font-medium">
+                            {{ $t('Risk') }}
                         </th>
                         <th scope="col" class="px-4 py-3 font-medium">
                             {{ $t('Next milestone') }}
@@ -353,6 +414,17 @@ function clearFilters(): void {
                             <td class="px-4 py-2">
                                 <PackageStatusBadge :status="row.status" />
                             </td>
+                            <td class="px-4 py-2">
+                                <span
+                                    v-if="row.risk"
+                                    :title="riskInWords.get(row.id)"
+                                >
+                                    <PackageRiskBadge :level="row.risk.level" />
+                                    <span class="sr-only">{{
+                                        riskInWords.get(row.id)
+                                    }}</span>
+                                </span>
+                            </td>
                             <td class="min-w-40 px-4 py-2">
                                 <template v-if="row.nextMilestoneName">
                                     <div>{{ row.nextMilestoneName }}</div>
@@ -444,7 +516,7 @@ function clearFilters(): void {
                             </td>
                         </tr>
                         <tr v-if="addingUnder?.id === row.id">
-                            <td colspan="11" class="bg-muted/30 px-4 py-3">
+                            <td colspan="12" class="bg-muted/30 px-4 py-3">
                                 <div
                                     :style="{
                                         paddingLeft: `${(row.depth + 1) * 1.25}rem`,
@@ -465,7 +537,7 @@ function clearFilters(): void {
                     </template>
                     <tr v-if="rows.length === 0">
                         <td
-                            colspan="11"
+                            colspan="12"
                             class="px-4 py-10 text-center text-muted-foreground"
                         >
                             {{

@@ -32,7 +32,7 @@ final class PackageScheduleOverview
     {
         $milestones = $project->milestones()->get(['id', 'name', 'is_need_date']);
         $list = MilestoneList::from($milestones);
-        $tree = self::packageAndEverythingBelow($project, $package);
+        $tree = self::packageAndEverythingBelow($package);
         $entries = MilestoneEntries::forProject($project->id, array_values(array_map(fn (object $row): int => $row->id, $tree->all())));
         $schedules = $tree->mapWithKeys(fn (object $row) => [$row->id => PackageSchedule::calculate($list, $entries[$row->id] ?? [])]);
 
@@ -62,20 +62,14 @@ final class PackageScheduleOverview
     }
 
     /**
-     * The package and all packages below it at any depth, in tree order. Number paths sort like the tree,
-     * so everything under [3, 2] lies between [3, 2] and [3, 3], and the project's number path index finds it.
+     * The package and all packages below it at any depth, in tree order.
      *
      * @return Collection<int, object{id: int, parent_id: int|null, status: string}>
      */
-    private static function packageAndEverythingBelow(Project $project, Package $package): Collection
+    private static function packageAndEverythingBelow(Package $package): Collection
     {
-        $path = $package->number_path;
-        $nextSiblingPath = [...array_slice($path, 0, -1), $path[count($path) - 1] + 1];
-
         /** @var Collection<int, object{id: int, parent_id: int|null, status: string}> */
-        return DB::table('packages')
-            ->where('project_id', $project->id)
-            ->whereRaw('number_path >= ?::integer[] and number_path < ?::integer[]', [self::arrayLiteral($path), self::arrayLiteral($nextSiblingPath)])
+        return $package->limitToItsTree(DB::table('packages'))
             ->orderBy('number_path')
             ->get(['id', 'parent_id', 'status']);
     }
@@ -121,13 +115,5 @@ final class PackageScheduleOverview
             'expectedNeedDate' => $expected,
             'floatDays' => PackageSchedule::floatDays($schedule->needDate(), $expected),
         ];
-    }
-
-    /**
-     * @param  list<int>  $path
-     */
-    private static function arrayLiteral(array $path): string
-    {
-        return '{'.implode(',', $path).'}';
     }
 }
