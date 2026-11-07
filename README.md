@@ -146,6 +146,15 @@ The interface is in English, built so that other languages can be added later wi
 
 Tip: add `alias sail='./vendor/bin/sail'` to your shell config to type less.
 
+Helpers for working with several AI agents at once, run from the host (see CLAUDE.md):
+
+```bash
+bin/agent-test <name> [options]   # tests on a database of that agent's own
+bin/browser-test [filter]         # browser tests, one run at a time
+bin/lint-files <files...>         # format and lint only these files
+bin/sync-check [--fix]            # find files Docker Desktop hasn't noticed changing
+```
+
 ## Browser tests
 
 The tests in `tests/Browser` use a real Chrome browser to sign in as each role and click through the main features. Every test also fails on a JavaScript error or a blocked script.

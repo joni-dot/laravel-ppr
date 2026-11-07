@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Formats and lints only the given files, so an agent never reformats files another agent is editing.
+# PHP files go through Pint, frontend files through `vp check --fix`.
+#
+#   bin/lint-files <files...>
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [ $# -eq 0 ]; then
+    sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//' >&2
+    exit 2
+fi
+
+php=()
+frontend=()
+for file in "$@"; do
+    case "$file" in
+        *.php) php+=("$file") ;;
+        *.vue | *.ts | *.js | *.css | *.json) frontend+=("$file") ;;
+    esac
+done
+
+status=0
+if [ ${#php[@]} -gt 0 ]; then
+    docker compose exec -T laravel.test ./vendor/bin/pint "${php[@]}" || status=1
+fi
+if [ ${#frontend[@]} -gt 0 ]; then
+    docker compose exec -T laravel.test pnpm exec vp check --fix "${frontend[@]}" || status=1
+fi
+exit $status

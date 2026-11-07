@@ -20,7 +20,21 @@ tests/Browser/run.sh                     # real-browser tests, run from the host
 
 `ci:check` runs the frontend checks, TypeScript, Pint, PHPStan and all tests. GitHub runs the same command and the browser tests on every pull request.
 
-If a result makes no sense, Docker Desktop may have missed a quick file edit. Compare the file's sha256 on the host and in the container. If they differ, run `sail down` and then `sail up -d`.
+If a result makes no sense, Docker Desktop may have missed a quick file edit. Run `bin/sync-check --fix`, which compares changed files on the host with the container's copy and writes the stale ones again. If a file still differs, run `sail down` and then `sail up -d`, but only when no other agent is using the containers.
+
+### When several agents work at once
+
+All agents share this folder and these containers, because the containers only see this folder; a git worktree can't run tests. So:
+
+```bash
+bin/agent-test <name> --filter=SomeTest  # tests on the agent's own database (testing_agent_<name>), not the shared one
+bin/agent-test --drop <name>             # remove it when the agent is done
+bin/browser-test <spec>                  # browser tests, one run at a time across all agents
+bin/lint-files <files...>                # format and lint only your own files
+bin/sync-check --fix                     # see above
+```
+
+`ci:check` and the browser tests both use the `testing` database, so run them one after the other, never next to each other. Never switch branches in a folder where someone else has uncommitted work; check `git status` first.
 
 ## Git workflow
 
