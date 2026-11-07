@@ -36,6 +36,8 @@ class ProjectNumberingController extends Controller
                 ->get(['id', 'code', 'name'])
                 ->map(fn (ProjectCategory $category) => $category->only(['id', 'code', 'name'])),
             'exampleCategoryCode' => PackageNumberFormat::EXAMPLE_CATEGORY_CODE,
+            // The preview shows the real next number, which skips numbers already given.
+            'lastPackageNumber' => $project->last_package_number,
             'separators' => NumberSeparator::options(NumberSeparator::cases()),
             'subSeparators' => NumberSeparator::options(NumberSeparator::forSubNumbers()),
         ]);

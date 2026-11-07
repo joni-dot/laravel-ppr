@@ -78,6 +78,7 @@ class Project extends Model
     /**
      * The running number the next top-level package gets. Numbers already given are never
      * given again, even if the first number was lowered after packages were added.
+     * The numbering preview uses the same rule: nextRunningNumber() in resources/js/lib/packageNumber.ts.
      */
     public function nextRunningNumber(): int
     {

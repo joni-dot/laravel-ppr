@@ -270,6 +270,75 @@ class PackageManagementTest extends TestCase
         $this->assertDatabaseHas('packages', ['id' => $package->id, 'owner_id' => null, 'buyer_id' => null]);
     }
 
+    public function test_a_role_change_takes_people_off_packages_their_new_role_cannot_own_or_buy()
+    {
+        $person = $this->member(ProjectRole::Buyer);
+        $package = $this->addPackage('Transformer');
+        $package->owner_id = $person->id;
+        $package->buyer_id = $person->id;
+        $package->save();
+        $membership = ProjectMember::query()->where('user_id', $person->id)->firstOrFail();
+        $changeRole = route('projects.members.update', [$this->project, $membership]);
+
+        $this->actingAs($this->manager)->patch($changeRole, ['role' => 'package_owner'])->assertRedirect();
+        $this->assertDatabaseHas('packages', ['id' => $package->id, 'owner_id' => $person->id, 'buyer_id' => null]);
+
+        $this->actingAs($this->manager)->patch($changeRole, ['role' => 'viewer'])->assertRedirect();
+        $this->assertDatabaseHas('packages', ['id' => $package->id, 'owner_id' => null, 'buyer_id' => null]);
+    }
+
+    public function test_deactivated_people_cannot_be_chosen_but_can_stay_where_they_are()
+    {
+        $package = $this->addPackage('Transformer');
+        $current = $this->member(ProjectRole::Buyer, 'Cora Current');
+        $package->owner_id = $current->id;
+        $package->save();
+        $current->forceFill(['deactivated_at' => now()])->save();
+        $other = $this->member(ProjectRole::Buyer, 'Gus Gone');
+        $other->forceFill(['deactivated_at' => now()])->save();
+        $update = route('projects.packages.update', [$this->project, $package]);
+        $valid = ['title' => 'Transformer', 'status' => 'draft', 'category_id' => $this->electrical->id];
+
+        $this->actingAs($this->manager)
+            ->get(route('projects.packages.edit', [$this->project, $package]))
+            ->assertInertia(fn ($page) => $page
+                ->where('ownerOptions', fn ($people) => $people->pluck('name')->contains('Cora Current') && ! $people->pluck('name')->contains('Gus Gone'))
+                ->where('buyerOptions', fn ($people) => ! $people->pluck('name')->contains('Gus Gone')));
+
+        $this->actingAs($this->manager)->put($update, [...$valid, 'owner_id' => $current->id, 'buyer_id' => $other->id])
+            ->assertSessionHasErrors('buyer_id')
+            ->assertSessionDoesntHaveErrors('owner_id');
+
+        $this->actingAs($this->manager)->put($update, [...$valid, 'owner_id' => $current->id])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('packages', ['id' => $package->id, 'owner_id' => $current->id]);
+    }
+
+    public function test_a_package_owner_can_save_whatever_the_people_fields_say()
+    {
+        $owner = $this->member(ProjectRole::PackageOwner);
+        $package = $this->addPackage('Transformer');
+        $package->owner_id = $owner->id;
+        $package->save();
+
+        $this->actingAs($owner)
+            ->put(route('projects.packages.update', [$this->project, $package]), [
+                'title' => 'Renamed', 'status' => 'planned', 'category_id' => $this->electrical->id,
+                'owner_id' => 999999, 'buyer_id' => 999999,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('packages', ['id' => $package->id, 'title' => 'Renamed', 'owner_id' => $owner->id, 'buyer_id' => null]);
+    }
+
+    public function test_the_numbering_page_previews_the_real_next_number()
+    {
+        $this->addPackage('Transformer');
+
+        $this->actingAs($this->manager)
+            ->get(route('projects.numbering.edit', $this->project))
+            ->assertInertia(fn ($page) => $page->where('lastPackageNumber', 1));
+    }
+
     public function test_the_overview_shows_the_next_free_number()
     {
         $this->addPackage('Transformer');

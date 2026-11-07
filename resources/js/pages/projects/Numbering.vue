@@ -18,6 +18,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { trans } from '@/lib/i18n';
 import {
     formatPackageNumber,
+    nextRunningNumber,
     formatSubPackageNumber,
 } from '@/lib/packageNumber';
 import { projectBreadcrumbs } from '@/lib/projectBreadcrumbs';
@@ -41,6 +42,7 @@ const props = defineProps<{
     numbering: NumberingScheme;
     categories: ProjectCategory[];
     exampleCategoryCode: string;
+    lastPackageNumber: number | null;
     separators: SeparatorOption[];
     subSeparators: SeparatorOption[];
 }>();
@@ -75,7 +77,10 @@ const previewPackageNumber = computed(() =>
             : null,
         separator: separatorCharacter(props.separators, form.number_separator),
         padding: Number(form.number_padding) || 1,
-        runningNumber: Number(form.number_start) || 1,
+        runningNumber: nextRunningNumber(
+            Number(form.number_start) || 1,
+            props.lastPackageNumber,
+        ),
     }),
 );
 
@@ -118,7 +123,7 @@ function save(): void {
                     aria-live="polite"
                 >
                     <p class="text-sm text-muted-foreground">
-                        {{ $t('Preview') }}
+                        {{ $t('Next package') }}
                     </p>
                     <p
                         class="font-mono text-lg"

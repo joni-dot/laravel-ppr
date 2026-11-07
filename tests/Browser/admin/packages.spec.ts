@@ -137,3 +137,22 @@ test('an admin edits a package and sees it on its page', async ({ page }) => {
     await page.getByRole('button', { name: 'Save package' }).click();
     await expect(page.getByText('Package saved.')).toBeVisible();
 });
+
+test('the numbering preview skips numbers already given', async ({ page }) => {
+    await page.goto(`/projects/${id}/numbering`);
+
+    await page.getByLabel('First number').fill('1');
+
+    // PP3-MEC-0001 exists, so the next package can't get number 1 again.
+    await expect(page.getByTestId('preview-package-number')).not.toHaveText(
+        /0001$/,
+    );
+    await page.getByRole('link', { name: 'Overview' }).click();
+    const nextOnOverview = await page
+        .getByTestId('example-package-number')
+        .textContent();
+    await page.goBack();
+    await expect(page.getByTestId('preview-package-number')).toHaveText(
+        nextOnOverview ?? '',
+    );
+});

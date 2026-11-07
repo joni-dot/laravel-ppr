@@ -31,8 +31,8 @@ class UpdatePackageRequest extends FormRequest
             ],
             'status' => ['required', Rule::enum(PackageStatus::class)],
             'purchase_type' => ['nullable', Rule::enum(PurchaseType::class)],
-            'owner_id' => ['nullable', 'integer', $this->memberWithRole(ProjectRole::owningPackages())],
-            'buyer_id' => ['nullable', 'integer', $this->memberWithRole(ProjectRole::buyingPackages())],
+            'owner_id' => $this->personRules('owner_id', ProjectRole::owningPackages()),
+            'buyer_id' => $this->personRules('buyer_id', ProjectRole::buyingPackages()),
             'quantity' => ['nullable', 'numeric', 'decimal:0,3', 'gt:0', 'max:99999999999'],
             'unit' => ['nullable', 'string', 'max:20'],
             'description' => ['nullable', 'string', 'max:5000'],
@@ -53,13 +53,37 @@ class UpdatePackageRequest extends FormRequest
     }
 
     /**
+     * Only people who may assign packages send an owner or buyer; for others the fields are left out.
+     * A newly chosen person must be an active project member with a suitable role. Keeping the
+     * current person is always allowed, so a package whose owner was deactivated can still be saved.
+     *
+     * @param  list<ProjectRole>  $roles
+     * @return list<mixed>
+     */
+    private function personRules(string $field, array $roles): array
+    {
+        if (! $this->user()->can('create', [Package::class, $this->project()])) {
+            return ['exclude'];
+        }
+
+        $isUnchanged = $this->input($field) !== null && (int) $this->input($field) === $this->package()->getAttribute($field);
+
+        return ['nullable', 'integer', Rule::when(! $isUnchanged, [$this->activeMemberWithRole($roles)])];
+    }
+
+    /**
      * @param  list<ProjectRole>  $roles
      */
-    private function memberWithRole(array $roles): Exists
+    private function activeMemberWithRole(array $roles): Exists
     {
         return Rule::exists('project_members', 'user_id')
             ->where('project_id', $this->project()->id)
-            ->whereIn('role', array_map(fn (ProjectRole $role) => $role->value, $roles));
+            ->whereIn('role', array_map(fn (ProjectRole $role) => $role->value, $roles))
+            ->where(fn ($membership) => $membership->whereExists(fn ($user) => $user
+                ->selectRaw('1')
+                ->from('users')
+                ->whereColumn('users.id', 'project_members.user_id')
+                ->whereNull('users.deactivated_at')));
     }
 
     private function project(): Project

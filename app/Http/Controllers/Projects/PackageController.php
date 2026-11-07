@@ -121,8 +121,8 @@ class PackageController extends Controller
             'purchaseTypes' => PurchaseType::options(),
             'canAssignPeople' => $canAssignPeople,
             // People are listed only for those who may choose them.
-            'ownerOptions' => $canAssignPeople ? $this->membersWithRole($project, ProjectRole::owningPackages()) : [],
-            'buyerOptions' => $canAssignPeople ? $this->membersWithRole($project, ProjectRole::buyingPackages()) : [],
+            'ownerOptions' => $canAssignPeople ? $this->peopleToChoose($project, ProjectRole::owningPackages(), $package->owner_id) : [],
+            'buyerOptions' => $canAssignPeople ? $this->peopleToChoose($project, ProjectRole::buyingPackages(), $package->buyer_id) : [],
         ]);
     }
 
@@ -130,9 +130,12 @@ class PackageController extends Controller
     {
         $package->fill($request->safe()->except(['owner_id', 'buyer_id']));
 
-        // A package owner may update their package, but not hand it to someone else.
-        if ($request->user()->can('create', [Package::class, $project])) {
+        // Left out of the validated data for package owners: they may update their package, but not hand it to someone else.
+        if ($request->safe()->has('owner_id')) {
             $package->owner_id = $request->validated('owner_id');
+        }
+
+        if ($request->safe()->has('buyer_id')) {
             $package->buyer_id = $request->validated('buyer_id');
         }
 
@@ -249,15 +252,19 @@ class PackageController extends Controller
     }
 
     /**
+     * Active project members with one of the roles, plus the person chosen now, so the form still shows them
+     * after they are deactivated.
+     *
      * @param  list<ProjectRole>  $roles
      * @return Collection<int, array{id: int, name: string, email: string}>
      */
-    private function membersWithRole(Project $project, array $roles): Collection
+    private function peopleToChoose(Project $project, array $roles, ?int $currentId): Collection
     {
         return User::query()
             ->join('project_members', 'project_members.user_id', '=', 'users.id')
             ->where('project_members.project_id', $project->id)
             ->whereIn('project_members.role', array_map(fn (ProjectRole $role) => $role->value, $roles))
+            ->where(fn ($people) => $people->whereNull('users.deactivated_at')->orWhere('users.id', $currentId))
             ->orderBy('users.name')
             ->get(['users.id', 'users.name', 'users.email'])
             ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email]);
