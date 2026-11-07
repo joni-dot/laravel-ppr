@@ -40,9 +40,9 @@ const isOpen = defineModel<boolean>('open', { required: true });
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button type="button" variant="secondary"
-                            >Cancel</Button
-                        >
+                        <Button type="button" variant="secondary">
+                            {{ $t('Cancel') }}
+                        </Button>
                     </DialogClose>
                     <Button
                         type="submit"

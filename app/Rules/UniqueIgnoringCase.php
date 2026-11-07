@@ -29,7 +29,7 @@ class UniqueIgnoringCase implements ValidationRule
             ->exists();
 
         if ($isTaken) {
-            $fail('The :attribute has already been taken.');
+            $fail('validation.unique')->translate();
         }
     }
 }

@@ -50,6 +50,18 @@ Admins can't change their own role or deactivate themselves, so there is always 
 
 Admins set the company-wide **risk warning** defaults: a package turns amber or red when its spare time (days between expected delivery and the date it is needed) drops below these numbers. Each project can change them.
 
+## Languages
+
+The interface is in English, built so that other languages can be added later without changing the code.
+
+- Write every text in English and pass it through `__('Text')` in PHP, `$t('Text')` in Vue templates or `trans('Text')` in Vue scripts (from `@/lib/i18n`). The English text is the key, so PHP and Vue share one language file per language.
+- Fill in changing values with placeholders, never by joining texts together: `$t('Invitation sent to :email.', { email })`. Word order differs between languages.
+- A text that is set before a page runs, such as a title in a page's `defineOptions`, is a function: `title: () => trans('Users')`. It is then translated when it is shown.
+- Translations are shown as plain text. Never put them in `v-html` or `{!! !!}`.
+- `lang/en.json` lists every text. `TranslationsTest` fails if a text is missing from it, if it lists a text the code no longer uses, or if a Vue template contains text without `$t()`.
+- To add a language, copy `lang/en.json` to, for example, `lang/fi.json` and translate the values. The same test checks that the new file has every text and keeps every placeholder. Laravel's own messages (validation, password reset) come from separate files, created with `sail artisan lang:publish`.
+- Not built yet: choosing the language per user (today the whole app uses `APP_LOCALE`), and texts with singular and plural forms.
+
 ## Roadmap
 
 1. Base app: sign-in, users, settings, security _(done)_

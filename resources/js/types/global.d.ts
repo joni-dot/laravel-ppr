@@ -1,4 +1,5 @@
 import type { Directive } from 'vue';
+import type { trans } from '@/lib/i18n';
 import type { Auth } from '@/types/auth';
 
 // Extend ImportMeta interface for Vite...
@@ -10,7 +11,6 @@ declare module 'vite/client' {
 
     interface ImportMeta {
         readonly env: ImportMetaEnv;
-        readonly glob: <T>(pattern: string) => Record<string, () => Promise<T>>;
     }
 }
 
@@ -34,5 +34,6 @@ declare module 'vue' {
         $inertia: typeof Router;
         $page: Page;
         $headManager: ReturnType<typeof createHeadManager>;
+        $t: typeof trans;
     }
 }

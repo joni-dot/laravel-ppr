@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { trans } from '@/lib/i18n';
 import { login } from '@/routes';
 
 defineOptions({
-    layout: {
-        title: 'Welcome aboard',
-        description: 'Choose a password to finish setting up your account',
-    },
+    layout: () => ({
+        title: trans('Welcome aboard'),
+        description: () =>
+            trans('Choose a password to finish setting up your account'),
+    }),
 });
 
 defineProps<{
@@ -26,14 +28,17 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Set your password" />
+    <Head :title="$t('Set your password')" />
 
     <div v-if="!isValid" class="space-y-4 text-center text-sm">
         <p>
-            This invitation link is invalid or has expired. Ask an admin to send
-            you a new one.
+            {{
+                $t(
+                    'This invitation link is invalid or has expired. Ask an admin to send you a new one.',
+                )
+            }}
         </p>
-        <TextLink :href="login()">Go to login</TextLink>
+        <TextLink :href="login()">{{ $t('Go to login') }}</TextLink>
     </div>
 
     <Form
@@ -45,7 +50,7 @@ defineProps<{
     >
         <div class="grid gap-6">
             <div class="grid gap-2">
-                <Label for="email">Email</Label>
+                <Label for="email">{{ $t('Email') }}</Label>
                 <Input
                     id="email"
                     type="email"
@@ -57,7 +62,7 @@ defineProps<{
             </div>
 
             <div class="grid gap-2">
-                <Label for="password">Password</Label>
+                <Label for="password">{{ $t('Password') }}</Label>
                 <PasswordInput
                     id="password"
                     name="password"
@@ -69,7 +74,9 @@ defineProps<{
             </div>
 
             <div class="grid gap-2">
-                <Label for="password_confirmation">Confirm password</Label>
+                <Label for="password_confirmation">{{
+                    $t('Confirm password')
+                }}</Label>
                 <PasswordInput
                     id="password_confirmation"
                     name="password_confirmation"
@@ -81,7 +88,7 @@ defineProps<{
 
             <Button type="submit" class="mt-4 w-full" :disabled="processing">
                 <Spinner v-if="processing" />
-                Set password
+                {{ $t('Set password') }}
             </Button>
         </div>
     </Form>

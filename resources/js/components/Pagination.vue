@@ -12,12 +12,17 @@ defineProps<{
 <template>
     <nav
         v-if="paginator.total > 0"
-        aria-label="Pagination"
+        :aria-label="$t('Pagination')"
         class="flex items-center justify-between gap-4 text-sm text-muted-foreground"
     >
         <p>
-            Showing {{ paginator.from }}–{{ paginator.to }} of
-            {{ paginator.total }}
+            {{
+                $t('Showing :from–:to of :total', {
+                    from: paginator.from ?? 0,
+                    to: paginator.to ?? 0,
+                    total: paginator.total,
+                })
+            }}
         </p>
 
         <div class="flex gap-2">
@@ -33,9 +38,9 @@ defineProps<{
                     preserve-scroll
                     preserve-state
                 >
-                    <ChevronLeft /> Previous
+                    <ChevronLeft /> {{ $t('Previous') }}
                 </Link>
-                <template v-else><ChevronLeft /> Previous</template>
+                <template v-else><ChevronLeft /> {{ $t('Previous') }}</template>
             </Button>
 
             <Button
@@ -50,9 +55,9 @@ defineProps<{
                     preserve-scroll
                     preserve-state
                 >
-                    Next <ChevronRight />
+                    {{ $t('Next') }} <ChevronRight />
                 </Link>
-                <template v-else>Next <ChevronRight /></template>
+                <template v-else>{{ $t('Next') }} <ChevronRight /></template>
             </Button>
         </div>
     </nav>

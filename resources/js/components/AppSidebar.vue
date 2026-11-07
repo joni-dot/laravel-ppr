@@ -16,18 +16,19 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { trans } from '@/lib/i18n';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 const page = usePage();
 
-const mainNavItems: NavItem[] = [
+const mainNavItems = computed<NavItem[]>(() => [
     {
-        title: 'Dashboard',
+        title: trans('Dashboard'),
         href: dashboard(),
         icon: LayoutGrid,
     },
-];
+]);
 
 const adminNavItems = computed<NavItem[]>(() => {
     const can = page.props.auth.can;
@@ -35,12 +36,16 @@ const adminNavItems = computed<NavItem[]>(() => {
     const items: { isVisible: boolean; item: NavItem }[] = [
         {
             isVisible: can.manageUsers,
-            item: { title: 'Users', href: UserController.index(), icon: Users },
+            item: {
+                title: trans('Users'),
+                href: UserController.index(),
+                icon: Users,
+            },
         },
         {
             isVisible: can.manageSettings,
             item: {
-                title: 'Settings',
+                title: trans('Settings'),
                 href: SettingsController.edit(),
                 icon: Settings,
             },
@@ -66,10 +71,10 @@ const adminNavItems = computed<NavItem[]>(() => {
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain label="Platform" :items="mainNavItems" />
+            <NavMain :label="$t('Platform')" :items="mainNavItems" />
             <NavMain
                 v-if="adminNavItems.length > 0"
-                label="Administration"
+                :label="$t('Administration')"
                 :items="adminNavItems"
             />
         </SidebarContent>

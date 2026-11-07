@@ -37,12 +37,12 @@ const isOpen = defineModel<boolean>('open', { required: true });
                 v-slot="{ errors, processing }"
             >
                 <DialogHeader>
-                    <DialogTitle>Edit user</DialogTitle>
+                    <DialogTitle>{{ $t('Edit user') }}</DialogTitle>
                     <DialogDescription>{{ user.email }}</DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-2">
-                    <Label for="edit-name">Name</Label>
+                    <Label for="edit-name">{{ $t('Name') }}</Label>
                     <Input
                         id="edit-name"
                         name="name"
@@ -54,7 +54,7 @@ const isOpen = defineModel<boolean>('open', { required: true });
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="edit-role">Role</Label>
+                    <Label for="edit-role">{{ $t('Role') }}</Label>
                     <RoleSelect
                         id="edit-role"
                         :roles="roles"
@@ -65,13 +65,13 @@ const isOpen = defineModel<boolean>('open', { required: true });
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button type="button" variant="secondary"
-                            >Cancel</Button
-                        >
+                        <Button type="button" variant="secondary">
+                            {{ $t('Cancel') }}
+                        </Button>
                     </DialogClose>
                     <Button type="submit" :disabled="processing">
                         <Spinner v-if="processing" />
-                        Save
+                        {{ $t('Save') }}
                     </Button>
                 </DialogFooter>
             </Form>
