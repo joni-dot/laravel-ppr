@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import PackageController from '@/actions/App/Http/Controllers/Projects/PackageController';
 import ProjectController from '@/actions/App/Http/Controllers/Projects/ProjectController';
 import ProjectMemberController from '@/actions/App/Http/Controllers/Projects/ProjectMemberController';
 import ProjectNumberingController from '@/actions/App/Http/Controllers/Projects/ProjectNumberingController';
@@ -14,17 +15,30 @@ const props = defineProps<{
     project: ProjectHeader;
 }>();
 
-const { isCurrentUrl } = useCurrentUrl();
+const { isCurrentUrl, isCurrentOrParentUrl } = useCurrentUrl();
 
-const tabs = computed<NavItem[]>(() => {
+type Tab = NavItem & {
+    // Stays highlighted on the pages below it, such as a single package.
+    includesSubpages?: boolean;
+};
+
+const tabs = computed<Tab[]>(() => {
     const { id, can } = props.project;
 
-    const items: { isVisible: boolean; item: NavItem }[] = [
+    const items: { isVisible: boolean; item: Tab }[] = [
         {
             isVisible: true,
             item: {
                 title: trans('Overview'),
                 href: ProjectController.show(id),
+            },
+        },
+        {
+            isVisible: true,
+            item: {
+                title: trans('Packages'),
+                href: PackageController.index(id),
+                includesSubpages: true,
             },
         },
         {
@@ -52,6 +66,12 @@ const tabs = computed<NavItem[]>(() => {
 
     return items.filter(({ isVisible }) => isVisible).map(({ item }) => item);
 });
+
+function isCurrentTab(tab: Tab): boolean {
+    return tab.includesSubpages
+        ? isCurrentOrParentUrl(tab.href)
+        : isCurrentUrl(tab.href);
+}
 </script>
 
 <template>
@@ -70,11 +90,11 @@ const tabs = computed<NavItem[]>(() => {
                 v-for="tab in tabs"
                 :key="toUrl(tab.href)"
                 :href="tab.href"
-                :aria-current="isCurrentUrl(tab.href) ? 'page' : undefined"
+                :aria-current="isCurrentTab(tab) ? 'page' : undefined"
                 :class="
                     cn(
                         'border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-                        isCurrentUrl(tab.href)
+                        isCurrentTab(tab)
                             ? 'border-primary text-foreground'
                             : 'border-transparent text-muted-foreground hover:text-foreground',
                     )

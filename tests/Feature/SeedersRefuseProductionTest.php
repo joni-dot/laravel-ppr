@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Database\Seeders\BrowserTestSeeder;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\DemoProjectSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -39,6 +40,7 @@ class SeedersRefuseProductionTest extends TestCase
         return [
             'default admin' => [DatabaseSeeder::class],
             'browser test data' => [BrowserTestSeeder::class],
+            'demo project' => [DemoProjectSeeder::class],
         ];
     }
 }

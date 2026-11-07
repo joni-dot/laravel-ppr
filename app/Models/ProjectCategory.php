@@ -6,6 +6,7 @@ use Database\Factories\ProjectCategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -31,5 +32,13 @@ class ProjectCategory extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * @return HasMany<Package, $this>
+     */
+    public function packages(): HasMany
+    {
+        return $this->hasMany(Package::class, 'category_id');
     }
 }

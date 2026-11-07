@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Projects\PackageController;
 use App\Http\Controllers\Projects\ProjectCategoryController;
 use App\Http\Controllers\Projects\ProjectController;
 use App\Http\Controllers\Projects\ProjectMemberController;
 use App\Http\Controllers\Projects\ProjectNumberingController;
+use App\Models\Package;
 use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
@@ -11,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth')
     ->prefix('projects')
     ->name('projects.')
-    ->where(['project' => '[0-9]+', 'category' => '[0-9]+', 'member' => '[0-9]+'])
+    ->where(['project' => '[0-9]+', 'category' => '[0-9]+', 'member' => '[0-9]+', 'package' => '[0-9]+'])
     ->group(function () {
         Route::get('/', [ProjectController::class, 'index'])
             ->can('viewAny', Project::class)
@@ -70,5 +72,25 @@ Route::middleware('auth')
             Route::delete('{project}/members/{member}', [ProjectMemberController::class, 'destroy'])
                 ->can('manageMembers', 'project')
                 ->name('members.destroy');
+
+            Route::get('{project}/packages', [PackageController::class, 'index'])
+                ->can('view', 'project')
+                ->name('packages.index');
+
+            Route::post('{project}/packages', [PackageController::class, 'store'])
+                ->can('create', [Package::class, 'project'])
+                ->name('packages.store');
+
+            Route::get('{project}/packages/{package}', [PackageController::class, 'show'])
+                ->can('view', 'project')
+                ->name('packages.show');
+
+            Route::get('{project}/packages/{package}/edit', [PackageController::class, 'edit'])
+                ->can('update', 'package')
+                ->name('packages.edit');
+
+            Route::put('{project}/packages/{package}', [PackageController::class, 'update'])
+                ->can('update', 'package')
+                ->name('packages.update');
         });
     });

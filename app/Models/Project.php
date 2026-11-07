@@ -27,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property int $number_start
  * @property NumberSeparator $sub_number_separator
  * @property int $sub_number_padding
+ * @property int|null $last_package_number
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -61,6 +62,27 @@ class Project extends Model
     public function categories(): HasMany
     {
         return $this->hasMany(ProjectCategory::class);
+    }
+
+    /**
+     * Each package found through this relation already knows its project, so checking
+     * permissions on it doesn't load the project again.
+     *
+     * @return HasMany<Package, $this>
+     */
+    public function packages(): HasMany
+    {
+        return $this->hasMany(Package::class)->chaperone('project');
+    }
+
+    /**
+     * The running number the next top-level package gets. Numbers already given are never
+     * given again, even if the first number was lowered after packages were added.
+     * The numbering preview uses the same rule: nextRunningNumber() in resources/js/lib/packageNumber.ts.
+     */
+    public function nextRunningNumber(): int
+    {
+        return max($this->number_start, ($this->last_package_number ?? 0) + 1);
     }
 
     public function numberFormat(): PackageNumberFormat

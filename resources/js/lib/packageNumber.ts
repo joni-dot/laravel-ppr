@@ -32,6 +32,17 @@ export function formatSubPackageNumber(
     return `${packageNumber}${separator}${pad(subNumber, padding)}`;
 }
 
+/**
+ * The running number the next package gets: the first number, unless numbers
+ * at or above it were already given. Same rule as Project::nextRunningNumber().
+ */
+export function nextRunningNumber(
+    start: number,
+    lastGiven: number | null,
+): number {
+    return Math.max(start, (lastGiven ?? 0) + 1);
+}
+
 function pad(value: number, length: number): string {
     return String(value).padStart(length, '0');
 }

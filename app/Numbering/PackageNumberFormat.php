@@ -24,11 +24,16 @@ final readonly class PackageNumberFormat
     {
         $number = implode($this->project->number_separator->character(), $this->parts($runningNumber, $categoryCode));
 
-        if ($subNumber === null) {
-            return $number;
-        }
+        return $subNumber === null ? $number : $this->subPackageNumber($number, $subNumber);
+    }
 
-        return $number.$this->project->sub_number_separator->character().$this->pad($subNumber, $this->project->sub_number_padding);
+    /**
+     * A sub-package's number is its parent's number plus its own sub-number, at any depth,
+     * such as "P100-ELE-0007.01.03" for the third sub-package of "P100-ELE-0007.01".
+     */
+    public function subPackageNumber(string $parentNumber, int $subNumber): string
+    {
+        return $parentNumber.$this->project->sub_number_separator->character().$this->pad($subNumber, $this->project->sub_number_padding);
     }
 
     /**

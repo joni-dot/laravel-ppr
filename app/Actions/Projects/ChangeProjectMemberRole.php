@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\DB;
 
 class ChangeProjectMemberRole
 {
-    public function __construct(private readonly EnsureProjectKeepsManager $ensureProjectKeepsManager) {}
+    public function __construct(
+        private readonly EnsureProjectKeepsManager $ensureProjectKeepsManager,
+        private readonly UnassignMemberFromPackages $unassignMemberFromPackages,
+    ) {}
 
     public function handle(ProjectMember $member, ProjectRole $role): void
     {
@@ -18,6 +21,8 @@ class ChangeProjectMemberRole
 
         DB::transaction(function () use ($member, $role) {
             $this->ensureProjectKeepsManager->handle($member);
+
+            $this->unassignMemberFromPackages->handle($member, $role);
 
             $member->role = $role;
             $member->save();
