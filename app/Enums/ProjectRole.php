@@ -33,6 +33,36 @@ enum ProjectRole: string
     }
 
     /**
+     * Roles that add packages and edit every package in the project.
+     *
+     * @return list<self>
+     */
+    public static function managingPackages(): array
+    {
+        return [self::ProjectManager, self::Buyer];
+    }
+
+    /**
+     * Roles a package's owner can have. Viewers change nothing, so they can't own a package.
+     *
+     * @return list<self>
+     */
+    public static function owningPackages(): array
+    {
+        return [self::ProjectManager, self::Buyer, self::PackageOwner];
+    }
+
+    /**
+     * Roles a package's responsible buyer can have.
+     *
+     * @return list<self>
+     */
+    public static function buyingPackages(): array
+    {
+        return [self::ProjectManager, self::Buyer];
+    }
+
+    /**
      * @return list<array{value: string, label: string, description: string}>
      */
     public static function options(): array

@@ -7,6 +7,7 @@ use App\Http\Requests\Projects\ProjectCategoryRequest;
 use App\Models\Project;
 use App\Models\ProjectCategory;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class ProjectCategoryController extends Controller
@@ -31,6 +32,12 @@ class ProjectCategoryController extends Controller
 
     public function destroy(Project $project, ProjectCategory $category): RedirectResponse
     {
+        if ($category->packages()->exists()) {
+            throw ValidationException::withMessages([
+                'category' => __('Packages use this category, so it can\'t be removed. Give them another category first.'),
+            ]);
+        }
+
         $category->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Category removed.')]);

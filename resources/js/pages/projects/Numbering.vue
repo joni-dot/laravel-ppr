@@ -211,6 +211,7 @@ function save(): void {
                     <FormField
                         id="number_start"
                         :label="$t('First number')"
+                        :hint="$t('Numbers already given are skipped.')"
                         :error="form.errors.number_start"
                     >
                         <Input

@@ -133,7 +133,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * What the first package and its first sub-package will be numbered, using the first category's code.
+     * What the next package and its first sub-package will be numbered, using the first category's code.
      *
      * @return array{package: string, subPackage: string}
      */
@@ -143,8 +143,8 @@ class ProjectController extends Controller
         $format = $project->numberFormat();
 
         return [
-            'package' => $format->format($project->number_start, $categoryCode),
-            'subPackage' => $format->format($project->number_start, $categoryCode, 1),
+            'package' => $format->format($project->nextRunningNumber(), $categoryCode),
+            'subPackage' => $format->format($project->nextRunningNumber(), $categoryCode, 1),
         ];
     }
 }

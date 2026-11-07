@@ -178,7 +178,7 @@ function changeRole(member: ProjectMember, role: ProjectRole): void {
         "
         :description="
             $t(
-                'They will no longer see this project. Their user account stays as it is.',
+                'They will no longer see this project, and packages they own or buy will have no owner or buyer. Their user account stays as it is.',
             )
         "
         :confirm-label="$t('Remove')"

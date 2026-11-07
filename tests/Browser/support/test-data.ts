@@ -11,4 +11,13 @@ export const projects = {
     visible: { id: 1, name: 'Browser Project', code: 'BP1' },
     // The member does not belong to this one.
     hidden: { id: 2, name: 'Hidden Project', code: 'HP2' },
+    // For the package tests. The member is a viewer here too.
+    packages: { id: 3, name: 'Package Project', code: 'PP3' },
+} as const;
+
+// The only package at the start, in the package project.
+export const seededPackage = {
+    id: 1,
+    number: 'PP3-MEC-0001',
+    title: 'Seeded pump',
 } as const;

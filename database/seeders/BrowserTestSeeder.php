@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Actions\Packages\CreatePackage;
 use App\Enums\ProjectRole;
 use App\Models\Project;
+use App\Models\ProjectCategory;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -14,6 +16,8 @@ use RuntimeException;
  */
 class BrowserTestSeeder extends Seeder
 {
+    public function __construct(private readonly CreatePackage $createPackage) {}
+
     public function run(): void
     {
         if (app()->isProduction()) {
@@ -24,7 +28,7 @@ class BrowserTestSeeder extends Seeder
         $member = User::factory()->create(['name' => 'Browser Member', 'email' => 'member@browser-test.example']);
         $manager = User::factory()->create(['name' => 'Browser Manager', 'email' => 'manager@browser-test.example']);
 
-        // The database is emptied first, so these get ids 1 and 2.
+        // The database is emptied first, so these get ids 1, 2 and 3.
         Project::factory()
             ->withMember($manager, ProjectRole::ProjectManager)
             ->withMember($member, ProjectRole::Viewer)
@@ -32,5 +36,14 @@ class BrowserTestSeeder extends Seeder
         Project::factory()
             ->withMember($manager, ProjectRole::ProjectManager)
             ->create(['name' => 'Hidden Project', 'code' => 'HP2']);
+
+        // Its own project, so the package tests don't depend on the numbering the project tests change.
+        $packageProject = Project::factory()
+            ->withMember($manager, ProjectRole::ProjectManager)
+            ->withMember($member, ProjectRole::Viewer)
+            ->create(['name' => 'Package Project', 'code' => 'PP3']);
+        ProjectCategory::factory()->for($packageProject)->create(['code' => 'ELE', 'name' => 'Electrical']);
+        $mechanical = ProjectCategory::factory()->for($packageProject)->create(['code' => 'MEC', 'name' => 'Mechanical']);
+        $this->createPackage->handle($packageProject, 'Seeded pump', $mechanical);
     }
 }

@@ -16,6 +16,13 @@ class PackageNumberFormatTest extends TestCase
         $this->assertSame('P100-ELE-0007.01', $format->format(7, 'ELE', 1));
     }
 
+    public function test_sub_packages_add_their_sub_number_to_the_parent_number_at_any_depth()
+    {
+        $format = $this->project()->numberFormat();
+
+        $this->assertSame('P100-ELE-0007.01.03', $format->subPackageNumber('P100-ELE-0007.01', 3));
+    }
+
     public function test_left_out_parts_leave_no_empty_separators()
     {
         $format = $this->project([

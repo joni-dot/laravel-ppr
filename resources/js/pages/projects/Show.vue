@@ -86,7 +86,7 @@ defineProps<{
                 <CardContent>
                     <dl class="grid gap-y-1 text-sm">
                         <dt class="text-muted-foreground">
-                            {{ $t('First package') }}
+                            {{ $t('Next package') }}
                         </dt>
                         <dd
                             class="font-mono"
