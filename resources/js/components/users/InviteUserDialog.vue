@@ -31,7 +31,7 @@ const isOpen = ref(false);
 <template>
     <Dialog v-model:open="isOpen">
         <DialogTrigger as-child>
-            <Button><UserPlus /> Invite user</Button>
+            <Button><UserPlus /> {{ $t('Invite user') }}</Button>
         </DialogTrigger>
 
         <DialogContent>
@@ -44,15 +44,18 @@ const isOpen = ref(false);
                 v-slot="{ errors, processing }"
             >
                 <DialogHeader>
-                    <DialogTitle>Invite user</DialogTitle>
+                    <DialogTitle>{{ $t('Invite user') }}</DialogTitle>
                     <DialogDescription>
-                        We'll email them a link to set their password. The link
-                        works for 3 days.
+                        {{
+                            $t(
+                                "We'll email them a link to set their password. The link works for 3 days.",
+                            )
+                        }}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid gap-2">
-                    <Label for="invite-name">Name</Label>
+                    <Label for="invite-name">{{ $t('Name') }}</Label>
                     <Input
                         id="invite-name"
                         name="name"
@@ -63,7 +66,7 @@ const isOpen = ref(false);
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="invite-email">Email address</Label>
+                    <Label for="invite-email">{{ $t('Email address') }}</Label>
                     <Input
                         id="invite-email"
                         type="email"
@@ -75,28 +78,31 @@ const isOpen = ref(false);
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="invite-role">Role</Label>
+                    <Label for="invite-role">{{ $t('Role') }}</Label>
                     <RoleSelect
                         id="invite-role"
                         :roles="roles"
                         default-value="member"
                     />
                     <p class="text-sm text-muted-foreground">
-                        Admins manage users, settings and every project. Members
-                        get their rights from their role in each project.
+                        {{
+                            $t(
+                                'Admins manage users, settings and every project. Members get their rights from their role in each project.',
+                            )
+                        }}
                     </p>
                     <InputError :message="errors.role" />
                 </div>
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button type="button" variant="secondary"
-                            >Cancel</Button
-                        >
+                        <Button type="button" variant="secondary">
+                            {{ $t('Cancel') }}
+                        </Button>
                     </DialogClose>
                     <Button type="submit" :disabled="processing">
                         <Spinner v-if="processing" />
-                        Send invitation
+                        {{ $t('Send invitation') }}
                     </Button>
                 </DialogFooter>
             </Form>

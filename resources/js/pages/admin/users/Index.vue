@@ -21,17 +21,18 @@ import { Input } from '@/components/ui/input';
 import EditUserDialog from '@/components/users/EditUserDialog.vue';
 import InviteUserDialog from '@/components/users/InviteUserDialog.vue';
 import UserStatusBadge from '@/components/users/UserStatusBadge.vue';
+import { trans } from '@/lib/i18n';
 import type { ManagedUser, Paginated, RoleOption } from '@/types';
 
 defineOptions({
-    layout: {
+    layout: () => ({
         breadcrumbs: [
             {
-                title: 'Users',
+                title: trans('Users'),
                 href: UserController.index(),
             },
         ],
-    },
+    }),
 });
 
 const props = defineProps<{
@@ -88,13 +89,13 @@ function resendInvitation(user: ManagedUser): void {
 </script>
 
 <template>
-    <Head title="Users" />
+    <Head :title="$t('Users')" />
 
     <div class="flex flex-1 flex-col gap-6 p-4">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <Heading
-                title="Users"
-                description="Invite people and decide what they can do"
+                :title="$t('Users')"
+                :description="$t('Invite people and decide what they can do')"
                 class="mb-0"
             />
             <InviteUserDialog :roles="roles" />
@@ -107,8 +108,8 @@ function resendInvitation(user: ManagedUser): void {
             <Input
                 v-model="search"
                 type="search"
-                placeholder="Search by name or email"
-                aria-label="Search users"
+                :placeholder="$t('Search by name or email')"
+                :aria-label="$t('Search users')"
                 class="pl-9"
             />
         </div>
@@ -117,14 +118,20 @@ function resendInvitation(user: ManagedUser): void {
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 text-left text-muted-foreground">
                     <tr>
-                        <th scope="col" class="px-4 py-3 font-medium">Name</th>
-                        <th scope="col" class="px-4 py-3 font-medium">Email</th>
-                        <th scope="col" class="px-4 py-3 font-medium">Role</th>
                         <th scope="col" class="px-4 py-3 font-medium">
-                            Status
+                            {{ $t('Name') }}
+                        </th>
+                        <th scope="col" class="px-4 py-3 font-medium">
+                            {{ $t('Email') }}
+                        </th>
+                        <th scope="col" class="px-4 py-3 font-medium">
+                            {{ $t('Role') }}
+                        </th>
+                        <th scope="col" class="px-4 py-3 font-medium">
+                            {{ $t('Status') }}
                         </th>
                         <th scope="col" class="px-4 py-3">
-                            <span class="sr-only">Actions</span>
+                            <span class="sr-only">{{ $t('Actions') }}</span>
                         </th>
                     </tr>
                 </thead>
@@ -135,7 +142,7 @@ function resendInvitation(user: ManagedUser): void {
                             <span
                                 v-if="user.id === currentUserId"
                                 class="font-normal text-muted-foreground"
-                                >(you)</span
+                                >{{ $t('(you)') }}</span
                             >
                         </td>
                         <td class="px-4 py-3">{{ user.email }}</td>
@@ -149,7 +156,11 @@ function resendInvitation(user: ManagedUser): void {
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        :aria-label="`Actions for ${user.name}`"
+                                        :aria-label="
+                                            $t('Actions for :name', {
+                                                name: user.name,
+                                            })
+                                        "
                                     >
                                         <MoreHorizontal />
                                     </Button>
@@ -159,26 +170,26 @@ function resendInvitation(user: ManagedUser): void {
                                         v-if="user.can.update"
                                         @select="userBeingEdited = user"
                                     >
-                                        Edit
+                                        {{ $t('Edit') }}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         v-if="user.can.resendInvitation"
                                         @select="resendInvitation(user)"
                                     >
-                                        Resend invitation
+                                        {{ $t('Resend invitation') }}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         v-if="user.can.reactivate"
                                         @select="reactivate(user)"
                                     >
-                                        Reactivate
+                                        {{ $t('Reactivate') }}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         v-if="user.can.deactivate"
                                         variant="destructive"
                                         @select="userBeingDeactivated = user"
                                     >
-                                        Deactivate
+                                        {{ $t('Deactivate') }}
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -189,7 +200,7 @@ function resendInvitation(user: ManagedUser): void {
                             colspan="5"
                             class="px-4 py-10 text-center text-muted-foreground"
                         >
-                            No users found.
+                            {{ $t('No users found.') }}
                         </td>
                     </tr>
                 </tbody>
@@ -210,9 +221,13 @@ function resendInvitation(user: ManagedUser): void {
     <ConfirmActionDialog
         v-if="userBeingDeactivated"
         :action="DeactivateUserController.form(userBeingDeactivated.id)"
-        :title="`Deactivate ${userBeingDeactivated.name}?`"
-        description="They will be signed out right away and can't log in until an admin reactivates them. Nothing they created is deleted."
-        confirm-label="Deactivate"
+        :title="$t('Deactivate :name?', { name: userBeingDeactivated.name })"
+        :description="
+            $t(
+                'They will be signed out right away and can\'t log in until an admin reactivates them. Nothing they created is deleted.',
+            )
+        "
+        :confirm-label="$t('Deactivate')"
         :open="true"
         @update:open="userBeingDeactivated = null"
     />

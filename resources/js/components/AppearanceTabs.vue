@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { Monitor, Moon, Sun } from '@lucide/vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { trans } from '@/lib/i18n';
 
 const { appearance, updateAppearance } = useAppearance();
 
 const tabs = [
-    { value: 'light', Icon: Sun, label: 'Light' },
-    { value: 'dark', Icon: Moon, label: 'Dark' },
-    { value: 'system', Icon: Monitor, label: 'System' },
+    { value: 'light', Icon: Sun, label: () => trans('Light') },
+    { value: 'dark', Icon: Moon, label: () => trans('Dark') },
+    { value: 'system', Icon: Monitor, label: () => trans('System') },
 ] as const;
 </script>
 
@@ -27,7 +28,7 @@ const tabs = [
             ]"
         >
             <component :is="Icon" class="-ml-1 h-4 w-4" />
-            <span class="ml-1.5 text-sm">{{ label }}</span>
+            <span class="ml-1.5 text-sm">{{ label() }}</span>
         </button>
     </div>
 </template>
