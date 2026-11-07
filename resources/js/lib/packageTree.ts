@@ -10,11 +10,11 @@ import type { PackageRow } from '@/types';
 export function visiblePackageRows(
     rows: PackageRow[],
     folded: ReadonlySet<number>,
-    matches: ((row: PackageRow) => boolean) | null,
+    matchingIds: ReadonlySet<number> | null,
 ): PackageRow[] {
-    return matches === null
+    return matchingIds === null
         ? rowsOutsideFoldedPackages(rows, folded)
-        : matchingRowsWithTheirParents(rows, matches);
+        : matchingRowsWithTheirParents(rows, matchingIds);
 }
 
 function rowsOutsideFoldedPackages(
@@ -38,17 +38,13 @@ function rowsOutsideFoldedPackages(
 
 function matchingRowsWithTheirParents(
     rows: PackageRow[],
-    matches: (row: PackageRow) => boolean,
+    matchingIds: ReadonlySet<number>,
 ): PackageRow[] {
     const byId = new Map(rows.map((row) => [row.id, row]));
     const shown = new Set<number>();
 
-    for (const row of rows) {
-        if (!matches(row)) {
-            continue;
-        }
-
-        let current: PackageRow | undefined = row;
+    for (const id of matchingIds) {
+        let current = byId.get(id);
 
         while (current && !shown.has(current.id)) {
             shown.add(current.id);
