@@ -34,6 +34,21 @@ class TranslationsTest extends TestCase
      */
     private const array LANGUAGE_NEUTRAL_TEXT = ['email@example.com'];
 
+    /**
+     * A JSON file that lists a text twice still loads, silently keeping the last one. That happens easily
+     * when several people or agents add texts to the same file at once.
+     */
+    public function test_no_language_file_lists_a_text_twice()
+    {
+        foreach (File::glob(lang_path('*.json')) as $path) {
+            // One text per line, so a quoted text followed by a colon at the start of a line is a key.
+            preg_match_all('/^\s*"((?:[^"\\\\]|\\\\.)*)"\s*:/m', File::get($path), $matches);
+            $twice = array_keys(array_filter(array_count_values($matches[1]), fn (int $count) => $count > 1));
+
+            $this->assertSame([], $twice, basename($path).' lists these texts more than once.');
+        }
+    }
+
     public function test_every_text_in_the_code_is_listed_in_the_english_language_file()
     {
         $missing = array_values(array_diff($this->textsInCode(), array_keys($this->languageFile('en'))));

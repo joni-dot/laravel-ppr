@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Runs the PHP tests on a database of the agent's own, so several agents can test at the same time
+# without emptying each other's database. The plain `testing` database stays for ci:check and the
+# browser tests. Run from the host.
+#
+#   bin/agent-test <name> [artisan test options]   for example: bin/agent-test a --filter=PackageScheduleTest
+#   bin/agent-test --drop <name>                   removes that agent's database when its work is done
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+usage() {
+    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//' >&2
+    exit 2
+}
+
+drop=false
+if [ "${1:-}" = '--drop' ]; then
+    drop=true
+    shift
+fi
+
+name="${1:-}"
+[ -n "$name" ] || usage
+shift
+
+# The name becomes part of a database name, so only short lowercase names are allowed.
+if ! [[ "$name" =~ ^[a-z0-9]{1,20}$ ]]; then
+    echo "The agent name may only have lowercase letters and digits (at most 20): $name" >&2
+    exit 2
+fi
+
+database="testing_agent_${name}"
+
+psql() {
+    docker compose exec -T pgsql sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "$1"' _ "$1"
+}
+
+if [ "$drop" = true ]; then
+    psql "DROP DATABASE IF EXISTS ${database}" >/dev/null
+    echo "Removed ${database}."
+    exit 0
+fi
+
+if [ "$(psql "SELECT 1 FROM pg_database WHERE datname = '${database}'")" != '1' ]; then
+    psql "CREATE DATABASE ${database}" >/dev/null
+    echo "Created ${database}."
+fi
+
+# phpunit.xml sets DB_DATABASE without force, so a value from the environment wins.
+exec docker compose exec -T -e DB_DATABASE="$database" laravel.test php artisan test "$@"

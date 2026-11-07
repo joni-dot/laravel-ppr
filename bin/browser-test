@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# tests/Browser/run.sh behind a lock, so only one browser test run happens at a time even when
+# several agents work in this folder. Takes the same arguments, for example: bin/browser-test member
+#
+# The browser tests use the `testing` database, the same one as `sail composer ci:check`, so don't run
+# both at once.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+lock="$(git rev-parse --git-common-dir)/browser-test.lock"
+exec 9>"$lock"
+
+if ! flock --nonblock 9; then
+    echo 'Another browser test run is going on; waiting for it to finish...' >&2
+    flock 9
+fi
+
+tests/Browser/run.sh "$@"
