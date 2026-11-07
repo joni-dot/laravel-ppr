@@ -1,3 +1,6 @@
+// Made once because the package list formats thousands of dates, and toLocaleDateString() is several times slower.
+const dateFormat = new Intl.DateTimeFormat();
+
 /**
  * Shows a date-only value such as "2026-10-29" in the user's own date format.
  * The parts are read one by one so the date never shifts because of time zones.
@@ -5,7 +8,7 @@
 export function formatDate(isoDate: string): string {
     const [year, month, day] = isoDate.split('-').map(Number);
 
-    return new Date(year, month - 1, day).toLocaleDateString();
+    return dateFormat.format(new Date(year, month - 1, day));
 }
 
 /**

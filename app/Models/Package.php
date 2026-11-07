@@ -109,6 +109,16 @@ class Package extends Model
     }
 
     /**
+     * This package's dates and lead times, one row per project milestone that has any.
+     *
+     * @return HasMany<PackageMilestone, $this>
+     */
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(PackageMilestone::class);
+    }
+
+    /**
      * How many levels below a top-level package this one is: 0 for a top-level package.
      */
     public function depth(): int

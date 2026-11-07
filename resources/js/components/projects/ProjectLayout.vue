@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import PackageController from '@/actions/App/Http/Controllers/Projects/PackageController';
 import ProjectController from '@/actions/App/Http/Controllers/Projects/ProjectController';
 import ProjectMemberController from '@/actions/App/Http/Controllers/Projects/ProjectMemberController';
+import ProjectMilestoneController from '@/actions/App/Http/Controllers/Projects/ProjectMilestoneController';
 import ProjectNumberingController from '@/actions/App/Http/Controllers/Projects/ProjectNumberingController';
 import Heading from '@/components/Heading.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
@@ -46,6 +47,13 @@ const tabs = computed<Tab[]>(() => {
             item: {
                 title: trans('Members'),
                 href: ProjectMemberController.index(id),
+            },
+        },
+        {
+            isVisible: can.update,
+            item: {
+                title: trans('Milestones'),
+                href: ProjectMilestoneController.index(id),
             },
         },
         {

@@ -65,6 +65,16 @@ class Project extends Model
     }
 
     /**
+     * In the order every package goes through them.
+     *
+     * @return HasMany<ProjectMilestone, $this>
+     */
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(ProjectMilestone::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
      * Each package found through this relation already knows its project, so checking
      * permissions on it doesn't load the project again.
      *

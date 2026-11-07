@@ -1,3 +1,4 @@
+import { shownDate } from '../support/dates';
 import { projects, seededPackage } from '../support/test-data';
 import { expect, test } from '../support/test';
 
@@ -155,4 +156,49 @@ test('the numbering preview skips numbers already given', async ({ page }) => {
     await expect(page.getByTestId('preview-package-number')).toHaveText(
         nextOnOverview ?? '',
     );
+});
+
+test('the list shows when a package is needed and how late it is', async ({
+    page,
+}) => {
+    await page.goto(`/projects/${id}/packages`);
+
+    // A package of its own, so the dates don't disturb the tests that use the seeded one.
+    await page.getByLabel('Title of the new package').fill('Valve set');
+    await page
+        .getByRole('combobox', { name: 'Category' })
+        .first()
+        .selectOption({ label: 'ELE – Electrical' });
+    await page.getByRole('button', { name: 'Add package' }).click();
+    await expect(page.getByText(/Package PP3-ELE-\d+ added\./)).toBeVisible();
+
+    const valves = page.getByRole('row', { name: /Valve set/ });
+    await expect(valves.getByRole('cell').nth(3)).toHaveText(
+        'Specification ready',
+    );
+    await expect(valves.getByRole('cell').nth(6)).toHaveText('–');
+
+    await page.getByRole('link', { name: 'Valve set' }).click();
+    await page.getByRole('link', { name: 'Edit dates' }).click();
+    await page
+        .getByLabel('Planned date of Required on site')
+        .fill('2027-06-30');
+    await page
+        .getByLabel('Forecast date of Required on site')
+        .fill('2027-07-05');
+    await page.getByRole('button', { name: 'Save dates' }).click();
+    await expect(page.getByText('Dates saved.')).toBeVisible();
+
+    await page.goto(`/projects/${id}/packages`);
+    for (const column of ['Next milestone', 'Need date', 'Expected', 'Float']) {
+        await expect(
+            page.getByRole('columnheader', { name: column, exact: true }),
+        ).toBeVisible();
+    }
+    const cells = valves.getByRole('cell');
+    await expect(cells.nth(4)).toHaveText(await shownDate(page, '2027-06-30'));
+    await expect(cells.nth(5)).toHaveText(await shownDate(page, '2027-07-05'));
+    await expect(cells.nth(6).getByText('−5 d', { exact: true })).toBeVisible();
+    await expect(cells.nth(6).getByText('5 days late')).toBeAttached();
+    await expect(cells.nth(6)).toHaveClass(/text-destructive/);
 });

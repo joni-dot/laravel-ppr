@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Actions\Projects\AddDefaultMilestones;
 use App\Enums\ProjectRole;
 use App\Models\Project;
 use App\Models\ProjectMember;
@@ -25,6 +26,14 @@ class ProjectFactory extends Factory
             'risk_amber_days' => 14,
             'risk_red_days' => 0,
         ];
+    }
+
+    /**
+     * The milestones a project made in the app starts with.
+     */
+    public function withDefaultMilestones(): static
+    {
+        return $this->afterCreating(fn (Project $project) => app(AddDefaultMilestones::class)->handle($project));
     }
 
     public function withMember(User $user, ProjectRole $role = ProjectRole::Viewer): static

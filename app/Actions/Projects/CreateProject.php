@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 
 class CreateProject
 {
+    public function __construct(private readonly AddDefaultMilestones $addDefaultMilestones) {}
+
     /**
      * Each project gets its own copy of the company risk warnings, so changing
      * the company defaults later never changes a running project's warnings.
@@ -26,6 +28,8 @@ class CreateProject
             $membership = $project->members()->make(['role' => ProjectRole::ProjectManager]);
             $membership->user()->associate($manager);
             $membership->save();
+
+            $this->addDefaultMilestones->handle($project);
 
             return $project;
         });

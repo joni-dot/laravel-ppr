@@ -27,6 +27,15 @@ class PackagePolicy
     }
 
     /**
+     * Change or clear a planned date that is already set. Planned dates are the original plan, so only
+     * the people running the project move them; anyone who may update the package can set a missing one.
+     */
+    public function changePlannedDates(User $user, Project $project): bool
+    {
+        return $user->isAdmin() || $user->roleIn($project) === ProjectRole::ProjectManager;
+    }
+
+    /**
      * The rule behind update(), for lists that check thousands of packages without loading each one.
      */
     public function updateOwnedBy(User $user, Project $project, ?int $ownerId): bool
