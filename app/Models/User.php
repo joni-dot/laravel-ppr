@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Enums\ProjectRole;
 use App\Enums\Role;
 use App\Enums\UserStatus;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -48,6 +52,14 @@ class User extends Authenticatable implements PasskeyUser
     ];
 
     /**
+     * Project roles already looked up during this request, so several permission
+     * checks on one page cost one query.
+     *
+     * @var array<int, ProjectRole|null>
+     */
+    private array $projectRoles = [];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -66,6 +78,39 @@ class User extends Authenticatable implements PasskeyUser
     public function isAdmin(): bool
     {
         return $this->role === Role::Admin;
+    }
+
+    /**
+     * @return HasMany<ProjectMember, $this>
+     */
+    public function projectMemberships(): HasMany
+    {
+        return $this->hasMany(ProjectMember::class);
+    }
+
+    /**
+     * The person's role in the project, or null when they are not a member.
+     */
+    public function roleIn(Project $project): ?ProjectRole
+    {
+        if (! array_key_exists($project->id, $this->projectRoles)) {
+            $this->projectRoles[$project->id] = $this->projectMemberships()
+                ->where('project_id', $project->id)
+                ->value('role');
+        }
+
+        return $this->projectRoles[$project->id];
+    }
+
+    /**
+     * People who can still sign in or accept their invitation.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function notDeactivated(Builder $query): void
+    {
+        $query->whereNull('deactivated_at');
     }
 
     public function isDeactivated(): bool

@@ -1,0 +1,89 @@
+<script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import ProjectController from '@/actions/App/Http/Controllers/Projects/ProjectController';
+import ProjectMemberController from '@/actions/App/Http/Controllers/Projects/ProjectMemberController';
+import ProjectNumberingController from '@/actions/App/Http/Controllers/Projects/ProjectNumberingController';
+import Heading from '@/components/Heading.vue';
+import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { trans } from '@/lib/i18n';
+import { cn, toUrl } from '@/lib/utils';
+import type { NavItem, ProjectHeader } from '@/types';
+
+const props = defineProps<{
+    project: ProjectHeader;
+}>();
+
+const { isCurrentUrl } = useCurrentUrl();
+
+const tabs = computed<NavItem[]>(() => {
+    const { id, can } = props.project;
+
+    const items: { isVisible: boolean; item: NavItem }[] = [
+        {
+            isVisible: true,
+            item: {
+                title: trans('Overview'),
+                href: ProjectController.show(id),
+            },
+        },
+        {
+            isVisible: true,
+            item: {
+                title: trans('Members'),
+                href: ProjectMemberController.index(id),
+            },
+        },
+        {
+            isVisible: can.update,
+            item: {
+                title: trans('Numbering'),
+                href: ProjectNumberingController.edit(id),
+            },
+        },
+        {
+            isVisible: can.update,
+            item: {
+                title: trans('Project settings'),
+                href: ProjectController.edit(id),
+            },
+        },
+    ];
+
+    return items.filter(({ isVisible }) => isVisible).map(({ item }) => item);
+});
+</script>
+
+<template>
+    <div class="flex flex-1 flex-col gap-6 p-4">
+        <Heading
+            :title="project.name"
+            :description="project.code"
+            class="mb-0"
+        />
+
+        <nav
+            :aria-label="$t('Project')"
+            class="-mb-px flex gap-1 overflow-x-auto border-b"
+        >
+            <Link
+                v-for="tab in tabs"
+                :key="toUrl(tab.href)"
+                :href="tab.href"
+                :aria-current="isCurrentUrl(tab.href) ? 'page' : undefined"
+                :class="
+                    cn(
+                        'border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
+                        isCurrentUrl(tab.href)
+                            ? 'border-primary text-foreground'
+                            : 'border-transparent text-muted-foreground hover:text-foreground',
+                    )
+                "
+            >
+                {{ tab.title }}
+            </Link>
+        </nav>
+
+        <slot />
+    </div>
+</template>

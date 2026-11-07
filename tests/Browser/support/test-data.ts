@@ -5,3 +5,10 @@ export const users = {
     admin: 'admin@browser-test.example',
     member: 'member@browser-test.example',
 } as const;
+
+export const projects = {
+    // The member is a viewer here.
+    visible: { id: 1, name: 'Browser Project', code: 'BP1' },
+    // The member does not belong to this one.
+    hidden: { id: 2, name: 'Hidden Project', code: 'HP2' },
+} as const;
