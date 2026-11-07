@@ -38,7 +38,7 @@ If a result makes no sense, Docker Desktop may have missed a quick file edit. Co
 - **Controllers follow CRUD where it makes sense.** Use only `index`, `create`, `store`, `show`, `edit`, `update` and `destroy`, and leave out the ones a feature doesn't need. An action that doesn't fit CRUD, or a controller that would have only one method, becomes a single-action controller named verb + noun (for example `MergePackagesController`).
 - **Action classes are single-action.** Each class in `app/Actions` is named verb + noun and has one public `handle()` method, except where a framework interface requires another name (Fortify's `reset()`). An action that needs another action receives it through its constructor.
 - **New behaviour comes with tests.** Add a browser test in `tests/Browser` when a feature adds a page or a user flow.
-- **Ready for more languages.** The interface is English for now, but write new text so it can be translated later.
+- **Ready for more languages.** The interface is English for now. Every text a person sees goes through `__()` in PHP or `$t()`/`trans()` in Vue, and is listed in `lang/en.json`; see Languages in the README.
 - **Report the result.** Every change summary includes a short security and performance check.
 - **Explain in plain language.** Keep it brief, define unavoidable technical terms and give the reason for each decision. Ask when a choice is really the user's to make.
 
