@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ProjectRole;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -19,6 +21,16 @@ class BrowserTestSeeder extends Seeder
         }
 
         User::factory()->admin()->create(['name' => 'Browser Admin', 'email' => 'admin@browser-test.example']);
-        User::factory()->create(['name' => 'Browser Member', 'email' => 'member@browser-test.example']);
+        $member = User::factory()->create(['name' => 'Browser Member', 'email' => 'member@browser-test.example']);
+        $manager = User::factory()->create(['name' => 'Browser Manager', 'email' => 'manager@browser-test.example']);
+
+        // The database is emptied first, so these get ids 1 and 2.
+        Project::factory()
+            ->withMember($manager, ProjectRole::ProjectManager)
+            ->withMember($member, ProjectRole::Viewer)
+            ->create(['name' => 'Browser Project', 'code' => 'BP1']);
+        Project::factory()
+            ->withMember($manager, ProjectRole::ProjectManager)
+            ->create(['name' => 'Hidden Project', 'code' => 'HP2']);
     }
 }

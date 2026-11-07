@@ -37,18 +37,40 @@ After changing PHP code that runs in the background, restart the workers with `.
 
 ## Roles
 
-| Role   | Can do                                                    |
-| ------ | --------------------------------------------------------- |
-| Admin  | Everything, in every project, plus users and settings     |
-| Member | Only what their role in each project allows (coming soon) |
+| Role   | Can do                                                |
+| ------ | ----------------------------------------------------- |
+| Admin  | Everything, in every project, plus users and settings |
+| Member | Only what their role in each project allows           |
 
-Project roles (project manager, buyer, package owner, viewer) are set per project, so a person can lead one project and only look at another. People see only the projects they belong to.
+Members get their rights from their role in each project, so a person can lead one project and only look at another. People see only the projects they belong to; other projects don't show up anywhere, and their addresses answer "forbidden".
 
-Admins can't change their own role or deactivate themselves, so there is always at least one admin. Users are deactivated, never deleted, so their history stays intact.
+| Project role    | Can do                                                                   |
+| --------------- | ------------------------------------------------------------------------ |
+| Project manager | Runs the project: details, risk warnings, numbering, categories, members |
+| Buyer           | Buys and tracks all packages in the project _(packages come later)_      |
+| Package owner   | Keeps the packages assigned to them up to date _(packages come later)_   |
+| Viewer          | Looks at everything in the project but changes nothing                   |
+
+Only admins create projects. Each new project gets a project manager straight away, and a project can never lose its last project manager: make someone else project manager first.
+
+Admins can't change their own role or deactivate themselves, so there is always at least one admin. Users are deactivated, never deleted, so their history stays intact. Removing someone from a project only removes their membership; their account stays.
 
 ## Settings
 
-Admins set the company-wide **risk warning** defaults: a package turns amber or red when its spare time (days between expected delivery and the date it is needed) drops below these numbers. Each project can change them.
+Admins set the company-wide **risk warning** defaults: a package turns amber or red when its spare time (days between expected delivery and the date it is needed) drops below these numbers. A new project gets a copy of them, and its project manager can change the project's own copy. Changing the defaults later doesn't change existing projects.
+
+## Package numbers
+
+Each project has its own numbering, set by its project manager on the project's **Numbering** page:
+
+- A number is built from up to four parts, in this order: an optional **prefix**, the **project code**, the **category code** and a **running number**. The prefix, project code and category code can each be left out.
+- The parts are joined with one **separator** (hyphen, dot, slash, underscore or none). The running number is padded with zeros to the chosen number of digits and starts at the chosen first number.
+- Sub-packages add their own number after a separator, which can't be "none": `P100-ELE-0007.01`.
+- The running number counts across the whole project, not per category, so every number is unique.
+- Numbers are never reused. Changing the numbering only affects packages added afterwards.
+- Categories (for example `ELE Electrical`) belong to one project. Project and category codes use only letters and digits, so they can never be mistaken for a separator.
+
+The rules live in `app/Numbering/PackageNumberFormat.php`. The numbering page shows a live preview made by `resources/js/lib/packageNumber.ts`, and a browser test checks that both give the same result.
 
 ## Languages
 
@@ -65,7 +87,7 @@ The interface is in English, built so that other languages can be added later wi
 ## Roadmap
 
 1. Base app: sign-in, users, settings, security _(done)_
-2. Projects, project members and numbering schemes
+2. Projects, project members and numbering schemes _(done)_
 3. Packages and sub-packages, with quick adding
 4. Milestones (planned, forecast, actual dates) and delivery calculation from lead times
 5. Risk levels and in-app notifications

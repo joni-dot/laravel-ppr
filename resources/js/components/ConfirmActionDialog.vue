@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3';
 import type { RouteFormDefinition } from '@/wayfinder';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -31,12 +32,14 @@ const isOpen = defineModel<boolean>('open', { required: true });
                 :options="{ preserveScroll: true }"
                 @success="isOpen = false"
                 class="space-y-6"
-                v-slot="{ processing }"
+                v-slot="{ errors, processing }"
             >
                 <DialogHeader>
                     <DialogTitle>{{ title }}</DialogTitle>
                     <DialogDescription>{{ description }}</DialogDescription>
                 </DialogHeader>
+
+                <InputError :message="Object.values(errors)[0]" />
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>

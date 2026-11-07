@@ -39,6 +39,7 @@ const props = defineProps<{
     users: Paginated<ManagedUser>;
     filters: { search: string };
     roles: RoleOption[];
+    invitationLifetimeInDays: number;
 }>();
 
 const currentUserId = usePage().props.auth.user.id;
@@ -98,7 +99,10 @@ function resendInvitation(user: ManagedUser): void {
                 :description="$t('Invite people and decide what they can do')"
                 class="mb-0"
             />
-            <InviteUserDialog :roles="roles" />
+            <InviteUserDialog
+                :roles="roles"
+                :invitation-lifetime-in-days="invitationLifetimeInDays"
+            />
         </div>
 
         <div class="relative max-w-sm">

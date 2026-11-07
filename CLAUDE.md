@@ -46,6 +46,8 @@ If a result makes no sense, Docker Desktop may have missed a quick file edit. Co
 
 - **People see only their own projects.** Admin is the only system-wide role; everyone else gets rights from their role in each project. Enforce this on the server by leaving data out of the response, not by hiding it in Vue.
 - **Package numbers are never reused**, even after merging, dividing or closing a package.
+- **Numbering rules exist twice and must change together:** `app/Numbering/PackageNumberFormat.php` makes the real numbers and `resources/js/lib/packageNumber.ts` shows the live preview. The browser test in `tests/Browser/admin/projects.spec.ts` fails if they disagree.
+- **A project always keeps a project manager.** `EnsureProjectKeepsManager` refuses to demote or remove the last one.
 - **Merging and dividing must stay traceable.** Keep the history of which packages became which.
 - **Records are kept.** Users are deactivated, never deleted.
 - **Seeders must refuse to run in production.** `SeedersRefuseProductionTest` covers this, so add any new seeder to it.

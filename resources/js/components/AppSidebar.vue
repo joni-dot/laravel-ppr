@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { LayoutGrid, Settings, Users } from '@lucide/vue';
+import { FolderKanban, LayoutGrid, Settings, Users } from '@lucide/vue';
 import { computed } from 'vue';
 import SettingsController from '@/actions/App/Http/Controllers/Admin/SettingsController';
+import ProjectController from '@/actions/App/Http/Controllers/Projects/ProjectController';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -27,6 +28,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: trans('Dashboard'),
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: trans('Projects'),
+        href: ProjectController.index(),
+        icon: FolderKanban,
     },
 ]);
 
