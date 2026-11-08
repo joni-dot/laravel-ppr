@@ -69,7 +69,7 @@ Each project's **Packages** tab shows all its packages as a tree that can be fol
 - **Sub-packages** can be divided again without limit. A sub-package gets its parent's category unless another one, or none, is chosen.
 - A top-level package needs a category when category codes are part of the project's numbers.
 - Packages are never deleted, so their numbers stay unique; set the status to **Cancelled** instead. A category that packages use can't be removed.
-- The list sends the whole tree at once, so folding, searching and filtering need no server round trip. Its query count doesn't grow with the number of packages.
+- The list opens in two steps. The header, the add form and the filters arrive at once; the whole tree follows in a second request straight after (an Inertia _deferred prop_), with grey placeholder rows holding its place so nothing jumps. Once loaded, folding, searching and filtering need no server round trip, and the query count doesn't grow with the number of packages. Adding a package from the list reloads only the tree, so the table and an open add form stay on screen.
 - The browser draws only the rows on screen and a few around them, so a list of thousands of packages opens and scrolls quickly. The browser's own find (Ctrl+F) therefore finds only drawn rows; the list's search box finds every package.
 
 For trying lists with realistic amounts of data, `./vendor/bin/sail artisan db:seed --class=DemoProjectSeeder` adds a made-up project with about 3,000 packages, most with milestone dates so some are late and some have time to spare (it takes a couple of minutes, and refuses to run in production).
@@ -116,6 +116,17 @@ Each package is **red**, **amber** or not at risk. The level is worked out every
 - Anyone who may edit a package can flag it as high risk on its page (reason up to 500 characters), change the reason and clear the flag. The page shows who flagged it and when.
 
 The package list has a **Risk** column (hover or a screen reader gives the reasons) and a filter for packages at risk (amber or red) or red only. The rules live in one place only, `app/Risk/PackageRisk.php`; `App\Risk\ProjectRisks::for($project)` works out every package of a project with three queries.
+
+## Page loading
+
+PPR is a single-page app, so a click never reloads the whole page. These cues show that the next page is on its way:
+
+- **Loading on hover.** Links in the sidebar, the project tabs and the settings menu load their page while the pointer rests on them (Inertia _prefetch_), so a click usually shows the page at once. A page loaded this way is kept for 10 seconds, and every save (any form that posts, changes or deletes) forgets all of them, so they never show data from before the save. The server checks permissions on these requests exactly as for a click. Only pages whose opening changes nothing are loaded this way: the Security settings page (it may ask for the password again) and notifications (opening one marks it read) are excluded; set `prefetch: false` on a nav item for any such page.
+- **Instant highlight.** The clicked menu item or tab is highlighted the moment it is clicked. If the page takes longer than a quarter of a second, a small spinner appears next to it.
+- **Slow pages.** After a quarter of a second, a 3 px bar in the app's main colour runs along the top, and the current page fades to 60 %, can't be clicked or tabbed into, and is marked busy for screen readers until the new page arrives. Faster pages show none of this, so quick clicks never flicker.
+- **New pages fade in** over 150 ms; search filters, page numbers and parts that load later don't replay it. With "reduce motion" turned on in the system settings there is no fading; the page still dims, but instantly.
+
+`resources/js/composables/useNavigationState.ts` alone decides what counts as a page change and when it is slow.
 
 ## Package numbers
 
