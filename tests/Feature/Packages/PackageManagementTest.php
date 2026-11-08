@@ -11,11 +11,12 @@ use App\Models\ProjectMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\LoadsPackageTree;
 use Tests\TestCase;
 
 class PackageManagementTest extends TestCase
 {
-    use RefreshDatabase;
+    use LoadsPackageTree, RefreshDatabase;
 
     private User $manager;
 
@@ -89,16 +90,62 @@ class PackageManagementTest extends TestCase
             ->get(route('projects.packages.index', $this->project))
             ->assertInertia(fn ($page) => $page
                 ->component('projects/packages/Index')
-                ->where('packages', fn ($packages) => $packages->pluck('number')->all() === [
-                    'P100-ELE-0001', 'P100-ELE-0001.01', 'P100-ELE-0001.01.01', 'P100-ELE-0002', 'P100-ELE-0002.01',
-                ] && $packages->pluck('depth')->all() === [0, 1, 2, 0, 1])
-                ->where('packages.1.parentId', $transformer->id)
-                ->where('packages.0.categoryCode', 'ELE')
-                ->where('packages.0.status', 'draft')
-                ->where('packages.0.canEdit', true)
                 ->where('can.create', true)
                 ->where('categoryRequired', true)
-                ->has('categories', 1));
+                ->has('categories', 1)
+                ->loadDeferredProps(fn ($tree) => $tree
+                    ->where('packages', fn ($packages) => $packages->pluck('number')->all() === [
+                        'P100-ELE-0001', 'P100-ELE-0001.01', 'P100-ELE-0001.01.01', 'P100-ELE-0002', 'P100-ELE-0002.01',
+                    ] && $packages->pluck('depth')->all() === [0, 1, 2, 0, 1])
+                    ->where('packages.1.parentId', $transformer->id)
+                    ->where('packages.0.categoryCode', 'ELE')
+                    ->where('packages.0.status', 'draft')
+                    ->where('packages.0.canEdit', true)));
+    }
+
+    public function test_the_list_opens_without_the_tree_and_asks_for_it_right_after()
+    {
+        $this->addPackage('Transformer');
+
+        $this->actingAs($this->manager)
+            ->get(route('projects.packages.index', $this->project))
+            ->assertInertia(fn ($page) => $page
+                ->missing('packages')
+                ->has('project')
+                ->has('statuses')
+                ->loadDeferredProps('default', fn ($tree) => $tree->has('packages', 1)));
+    }
+
+    public function test_the_page_itself_does_not_read_the_packages()
+    {
+        $this->addPackage('Transformer');
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($this->manager)->get(route('projects.packages.index', $this->project))->assertOk();
+
+        DB::disableQueryLog();
+        $queries = array_column(DB::getQueryLog(), 'query');
+        $this->assertNotEmpty($queries);
+        $this->assertEmpty(preg_grep('/\bpackages\b/', $queries), 'The first response should leave the slow tree to the deferred request.');
+    }
+
+    public function test_adding_from_the_list_sends_the_tree_back_with_the_new_package()
+    {
+        $this->addPackage('Transformer');
+
+        // The way the list's add form posts: only the tree is reloaded, so the table stays on screen meanwhile.
+        $this->actingAs($this->manager)
+            ->withHeaders(self::packageTreeHeaders())
+            ->from(route('projects.packages.index', $this->project))
+            ->followingRedirects()
+            ->post(route('projects.packages.store', $this->project), ['title' => 'Cables', 'category_id' => $this->electrical->id])
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('projects/packages/Index')
+                ->where('packages', fn ($packages) => $packages->pluck('title')->all() === ['Transformer', 'Cables'])
+                ->missing('categories')
+                ->hasFlash('toast.message', 'Package P100-ELE-0002 added.'));
     }
 
     public function test_sub_numbers_past_their_digits_still_sort_as_numbers()
@@ -110,7 +157,7 @@ class PackageManagementTest extends TestCase
         }
 
         $this->actingAs($this->manager)
-            ->get(route('projects.packages.index', $this->project))
+            ->getPackageTree($this->project)
             ->assertInertia(fn ($page) => $page
                 ->where('packages.99.number', 'P100-ELE-0001.99')
                 ->where('packages.100.number', 'P100-ELE-0001.100'));
@@ -121,7 +168,7 @@ class PackageManagementTest extends TestCase
         $owner = $this->member(ProjectRole::PackageOwner);
         $this->addPackage('First');
 
-        $queriesForOne = $this->countQueries(fn () => $this->actingAs($owner->fresh())->get(route('projects.packages.index', $this->project)));
+        $queriesForOne = $this->countQueries(fn () => $this->actingAs($owner->fresh())->getPackageTree($this->project));
 
         foreach (range(1, 20) as $count) {
             $package = $this->addPackage("Package {$count}");
@@ -129,7 +176,7 @@ class PackageManagementTest extends TestCase
             $package->save();
         }
 
-        $queriesForMany = $this->countQueries(fn () => $this->actingAs($owner->fresh())->get(route('projects.packages.index', $this->project)));
+        $queriesForMany = $this->countQueries(fn () => $this->actingAs($owner->fresh())->getPackageTree($this->project));
 
         $this->assertSame($queriesForOne, $queriesForMany);
     }

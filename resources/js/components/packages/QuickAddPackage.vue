@@ -24,6 +24,9 @@ const props = defineProps<{
     autofocus?: boolean;
     // Shows a "Done" button, for a form that opens on request.
     closable?: boolean;
+    // The page props to reload after adding; all of them when left out. A deferred prop must be named here,
+    // or the page drops it and shows its placeholder until it has loaded again.
+    reloadOnly?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -50,6 +53,7 @@ function add(): void {
     form.post(PackageController.store.url(props.projectId), {
         preserveScroll: true,
         preserveState: true,
+        only: props.reloadOnly ?? [],
         onSuccess: () => {
             form.reset('title');
             focusTitle();

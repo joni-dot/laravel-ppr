@@ -56,6 +56,10 @@ test('an admin adds packages and sub-packages at any depth', async ({
     await expect(
         page.getByText('Package PP3-ELE-0002.01 added.'),
     ).toBeVisible();
+    // The list reloads only its packages, so the table and its open form stay while the new row comes in.
+    await expect(subTitle).toHaveValue('');
+    await expect(subTitle).toBeFocused();
+    await expect(page.getByRole('link', { name: 'Brackets' })).toBeVisible();
 
     await page
         .getByRole('button', {
