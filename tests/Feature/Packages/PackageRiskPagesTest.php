@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\LoadsPackageTree;
 use Tests\TestCase;
 
 /**
@@ -18,7 +19,7 @@ use Tests\TestCase;
  */
 class PackageRiskPagesTest extends TestCase
 {
-    use RefreshDatabase;
+    use LoadsPackageTree, RefreshDatabase;
 
     private User $manager;
 
@@ -47,7 +48,7 @@ class PackageRiskPagesTest extends TestCase
         $flagged->forceFill(['risk_flag_reason' => 'Supplier went bankrupt', 'risk_flagged_at' => now()])->save();
 
         $this->actingAs($this->manager)
-            ->get(route('projects.packages.index', $this->project))
+            ->getPackageTree($this->project)
             ->assertInertia(fn ($page) => $page
                 ->where('packages.0.risk', null)
                 ->where('packages.1.risk', ['level' => 'red', 'reasons' => ['overdue'], 'overdueMilestone' => 'Order placed'])
@@ -64,7 +65,7 @@ class PackageRiskPagesTest extends TestCase
         $package->forceFill(['status' => PackageStatus::Closed, 'risk_flag_reason' => 'Old worry', 'risk_flagged_at' => now()])->save();
 
         $this->actingAs($this->manager)
-            ->get(route('projects.packages.index', $this->project))
+            ->getPackageTree($this->project)
             ->assertInertia(fn ($page) => $page->where('packages.0.risk', null));
 
         $this->actingAs($this->manager)
@@ -150,7 +151,7 @@ class PackageRiskPagesTest extends TestCase
         $manager = $this->manager->fresh();
         DB::flushQueryLog();
         DB::enableQueryLog();
-        $this->actingAs($manager)->get(route('projects.packages.index', $this->project))->assertOk();
+        $this->actingAs($manager)->getPackageTree($this->project)->assertOk();
         DB::disableQueryLog();
 
         return count(DB::getQueryLog());

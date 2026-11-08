@@ -4,10 +4,12 @@ import { useWindowVirtualizer } from '@tanstack/vue-virtual';
 import { useResizeObserver } from '@vueuse/core';
 import { computed, onMounted, ref, useTemplateRef } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
+import PackageTreeColumns from '@/components/packages/PackageTreeColumns.vue';
 import QuickAddPackage from '@/components/packages/QuickAddPackage.vue';
 import { buttonVariants } from '@/components/ui/button';
 import { visitLinkInApp } from '@/lib/inAppLinks';
 import { packageRowViews } from '@/lib/packageRowView';
+import { packageTableWidths } from '@/lib/packageTableWidths';
 import { cn } from '@/lib/utils';
 import type { PackageRow, ProjectCategory, PurchaseType } from '@/types';
 
@@ -31,6 +33,8 @@ const props = defineProps<{
     canCreate: boolean;
     // The package with an open "add a sub-package" form below it.
     addingUnderId: number | null;
+    // The page props the add form reloads; see QuickAddPackage.
+    reloadOnly?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -127,7 +131,7 @@ const spaceBelow = computed(() => {
         : 0;
 });
 
-const numberColumnWidth = computed(() => {
+const widths = computed(() => {
     let deepest = 0;
     let longest = 0;
 
@@ -136,14 +140,8 @@ const numberColumnWidth = computed(() => {
         longest = Math.max(longest, row.number.length);
     }
 
-    // The indent of the deepest level, the fold button, the number itself and the cell's padding.
-    return `calc(${deepest * 1.25}rem + ${longest}ch + 4rem)`;
+    return packageTableWidths(deepest, longest);
 });
-
-// The fixed columns take 71.5rem; the title gets the rest, but at least 10rem.
-const tableMinWidth = computed(
-    () => `calc(${numberColumnWidth.value} + 81.5rem)`,
-);
 
 function measure(element: Element | ComponentPublicInstance | null): void {
     if (element instanceof Element) {
@@ -180,64 +178,10 @@ defineExpose({ scrollToStart });
         <table
             ref="table"
             class="w-full table-fixed text-sm"
-            :style="{ minWidth: tableMinWidth }"
+            :style="{ minWidth: widths.table }"
             :aria-rowcount="items.length + 1"
         >
-            <!-- Fixed widths, so the columns stay put while rows come and go during scrolling. -->
-            <colgroup>
-                <col class="font-mono" :style="{ width: numberColumnWidth }" />
-                <col />
-                <col class="w-28" />
-                <col class="w-24" />
-                <col class="w-40" />
-                <col class="w-28" />
-                <col class="w-28" />
-                <col class="w-20" />
-                <col class="w-28" />
-                <col class="w-32" />
-                <col class="w-32" />
-                <col class="w-26" />
-            </colgroup>
-            <thead class="bg-muted/50 text-left text-muted-foreground">
-                <tr aria-rowindex="1">
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Number') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Title') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Status') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Risk') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Next milestone') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Need date') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Expected') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 text-right font-medium">
-                        {{ $t('Float') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Type') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Owner') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3 font-medium">
-                        {{ $t('Buyer') }}
-                    </th>
-                    <th scope="col" class="px-4 py-3">
-                        <span class="sr-only">{{ $t('Actions') }}</span>
-                    </th>
-                </tr>
-            </thead>
+            <PackageTreeColumns :number-column-width="widths.numberColumn" />
             <tbody ref="body" class="divide-y" @click="visitLinkInApp">
                 <tr v-if="spaceAbove > 0" aria-hidden="true">
                     <td
@@ -401,6 +345,7 @@ defineExpose({ scrollToStart });
                                     :project-id="projectId"
                                     :categories="categories"
                                     :parent="item.row"
+                                    :reload-only="reloadOnly"
                                     autofocus
                                     closable
                                     @close="emit('closeAdding')"

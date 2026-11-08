@@ -12,11 +12,12 @@ use App\Models\ProjectCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\LoadsPackageTree;
 use Tests\TestCase;
 
 class PackageListScheduleTest extends TestCase
 {
-    use RefreshDatabase;
+    use LoadsPackageTree, RefreshDatabase;
 
     private User $manager;
 
@@ -45,7 +46,7 @@ class PackageListScheduleTest extends TestCase
         $this->fillIn($transformer, 'Required on site', ['planned_date' => '2027-06-01', 'forecast_date' => '2027-05-20']);
 
         $this->actingAs($this->manager)
-            ->get(route('projects.packages.index', $this->project))
+            ->getPackageTree($this->project)
             ->assertInertia(fn ($page) => $page
                 ->where('packages.0.nextMilestoneName', 'Request for quotation sent')
                 ->where('packages.0.nextMilestoneDate', '2027-01-15')
@@ -69,7 +70,7 @@ class PackageListScheduleTest extends TestCase
         $this->fillIn($bolts, 'Required on site', ['planned_date' => '2027-07-01', 'forecast_date' => '2027-06-11']);
 
         $this->actingAs($this->manager)
-            ->get(route('projects.packages.index', $this->project))
+            ->getPackageTree($this->project)
             ->assertInertia(fn ($page) => $page
                 ->where('packages.0.needDate', '2027-06-01')
                 ->where('packages.0.expectedNeedDate', '2027-06-11')
@@ -91,7 +92,7 @@ class PackageListScheduleTest extends TestCase
         $this->fillIn($core, 'Required on site', ['forecast_date' => '2027-09-01']);
 
         $this->actingAs($this->manager)
-            ->get(route('projects.packages.index', $this->project))
+            ->getPackageTree($this->project)
             ->assertInertia(fn ($page) => $page
                 ->where('packages.0.expectedNeedDate', '2027-05-01')
                 ->where('packages.0.floatDays', 31)
@@ -137,7 +138,7 @@ class PackageListScheduleTest extends TestCase
         $manager = $this->manager->fresh();
         DB::flushQueryLog();
         DB::enableQueryLog();
-        $this->actingAs($manager)->get(route('projects.packages.index', $this->project))->assertOk();
+        $this->actingAs($manager)->getPackageTree($this->project)->assertOk();
         DB::disableQueryLog();
 
         return count(DB::getQueryLog());

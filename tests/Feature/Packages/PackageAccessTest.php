@@ -9,11 +9,12 @@ use App\Models\ProjectCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\LoadsPackageTree;
 use Tests\TestCase;
 
 class PackageAccessTest extends TestCase
 {
-    use RefreshDatabase;
+    use LoadsPackageTree, RefreshDatabase;
 
     /**
      * @return array<string, array{string, string}>
@@ -41,6 +42,15 @@ class PackageAccessTest extends TestCase
         $this->assertDatabaseCount('packages', 1);
     }
 
+    public function test_people_outside_the_project_cannot_load_its_package_tree()
+    {
+        $package = Package::factory()->create();
+
+        $this->actingAs(User::factory()->create())->getPackageTree($package->project)
+            ->assertForbidden()
+            ->assertDontSee($package->title);
+    }
+
     public function test_guests_are_sent_to_login()
     {
         $package = Package::factory()->create();
@@ -53,7 +63,9 @@ class PackageAccessTest extends TestCase
         [$viewer, $package] = $this->memberWithPackage(ProjectRole::Viewer);
 
         $this->actingAs($viewer)->get($this->url('projects.packages.index', $package))->assertOk()
-            ->assertInertia(fn ($page) => $page->where('can.create', false)->where('packages.0.canEdit', false));
+            ->assertInertia(fn ($page) => $page->where('can.create', false));
+        $this->actingAs($viewer)->getPackageTree($package->project)->assertOk()
+            ->assertInertia(fn ($page) => $page->where('packages.0.canEdit', false));
         $this->actingAs($viewer)->get($this->url('projects.packages.show', $package))->assertOk()
             ->assertInertia(fn ($page) => $page->where('can', ['update' => false, 'create' => false]));
 
@@ -107,8 +119,9 @@ class PackageAccessTest extends TestCase
         $someoneElses = Package::factory()->for($own->project)->create();
 
         $this->actingAs($owner)->get($this->url('projects.packages.index', $own))
+            ->assertInertia(fn ($page) => $page->where('can.create', false));
+        $this->actingAs($owner)->getPackageTree($own->project)
             ->assertInertia(fn ($page) => $page
-                ->where('can.create', false)
                 ->where('packages', fn ($packages) => $packages->firstWhere('id', $own->id)['canEdit'] === true
                     && $packages->firstWhere('id', $someoneElses->id)['canEdit'] === false));
 

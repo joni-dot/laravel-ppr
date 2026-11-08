@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Deferred, Head, Link } from '@inertiajs/vue3';
 import { Search } from '@lucide/vue';
 import { watchDebounced } from '@vueuse/core';
 import { computed, ref, useTemplateRef, watch } from 'vue';
 import PackageController from '@/actions/App/Http/Controllers/Projects/PackageController';
 import ProjectNumberingController from '@/actions/App/Http/Controllers/Projects/ProjectNumberingController';
 import PackageTreeTable from '@/components/packages/PackageTreeTable.vue';
+import PackageTreeTableSkeleton from '@/components/packages/PackageTreeTableSkeleton.vue';
 import QuickAddPackage from '@/components/packages/QuickAddPackage.vue';
 import ProjectLayout from '@/components/projects/ProjectLayout.vue';
 import { Button } from '@/components/ui/button';
@@ -33,13 +34,17 @@ defineOptions({
 
 const props = defineProps<{
     project: ProjectHeader;
-    packages: PackageRow[];
+    // Deferred: missing while the page first loads; see PackageController::index().
+    packages?: PackageRow[];
     categories: ProjectCategory[];
     categoryRequired: boolean;
     statuses: Option<PackageStatus>[];
     purchaseTypes: Option<PurchaseType>[];
     can: { create: boolean };
 }>();
+
+// Adding a package reloads the tree with it, instead of dropping the tree and loading it again.
+const RELOAD_AFTER_ADDING = ['packages'];
 
 // Searching waits for a short pause in typing, so the list isn't filtered again for every letter.
 const SEARCH_DELAY_MS = 150;
@@ -62,7 +67,10 @@ watchDebounced(
     { debounce: SEARCH_DELAY_MS },
 );
 
-const parents = computed(() => packagesWithChildren(props.packages));
+// Empty until the tree has loaded, so the filters can be used meanwhile.
+const allPackages = computed(() => props.packages ?? []);
+
+const parents = computed(() => packagesWithChildren(allPackages.value));
 
 const purchaseTypeLabels = computed(
     () => new Map(props.purchaseTypes.map((type) => [type.value, type.label])),
@@ -80,12 +88,14 @@ const isFiltering = computed(
 
 const matchingIds = computed(() =>
     isFiltering.value
-        ? new Set(props.packages.filter(rowMatchesFilters).map((row) => row.id))
+        ? new Set(
+              allPackages.value.filter(rowMatchesFilters).map((row) => row.id),
+          )
         : null,
 );
 
 const rows = computed(() =>
-    visiblePackageRows(props.packages, folded.value, matchingIds.value),
+    visiblePackageRows(allPackages.value, folded.value, matchingIds.value),
 );
 
 watch([search, statusFilter, categoryFilter, riskFilter], () =>
@@ -202,6 +212,7 @@ function clearFilters(): void {
                 :project-id="project.id"
                 :categories="categories"
                 :category-required="categoryRequired"
+                :reload-only="RELOAD_AFTER_ADDING"
             />
         </template>
 
@@ -282,41 +293,47 @@ function clearFilters(): void {
         </div>
 
         <p
-            v-if="isFiltering"
+            v-if="isFiltering && packages"
             class="text-sm text-muted-foreground"
             aria-live="polite"
         >
             {{
                 $t(':count of :total packages match', {
                     count: matchingIds?.size ?? 0,
-                    total: packages.length,
+                    total: allPackages.length,
                 })
             }}
         </p>
 
-        <PackageTreeTable
-            ref="table"
-            :project-id="project.id"
-            :packages="packages"
-            :rows="rows"
-            :matching-ids="matchingIds"
-            :parents="parents"
-            :folded="folded"
-            :purchase-type-labels="purchaseTypeLabels"
-            :categories="categories"
-            :can-create="can.create"
-            :adding-under-id="addingUnderId"
-            @toggle-folded="toggleFolded"
-            @add-under="startAddingUnder"
-            @close-adding="addingUnderId = null"
-        >
-            <template #empty>
-                {{
-                    isFiltering
-                        ? $t('No packages match.')
-                        : $t('No packages yet.')
-                }}
+        <Deferred data="packages">
+            <template #fallback>
+                <PackageTreeTableSkeleton />
             </template>
-        </PackageTreeTable>
+            <PackageTreeTable
+                ref="table"
+                :project-id="project.id"
+                :packages="allPackages"
+                :rows="rows"
+                :matching-ids="matchingIds"
+                :parents="parents"
+                :folded="folded"
+                :purchase-type-labels="purchaseTypeLabels"
+                :categories="categories"
+                :can-create="can.create"
+                :adding-under-id="addingUnderId"
+                :reload-only="RELOAD_AFTER_ADDING"
+                @toggle-folded="toggleFolded"
+                @add-under="startAddingUnder"
+                @close-adding="addingUnderId = null"
+            >
+                <template #empty>
+                    {{
+                        isFiltering
+                            ? $t('No packages match.')
+                            : $t('No packages yet.')
+                    }}
+                </template>
+            </PackageTreeTable>
+        </Deferred>
     </ProjectLayout>
 </template>

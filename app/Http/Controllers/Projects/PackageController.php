@@ -35,6 +35,8 @@ class PackageController extends Controller
 {
     /**
      * The whole package tree at once: the page filters and folds it without asking the server again.
+     * The tree is deferred: it is the slow part with thousands of packages, so the page opens without it
+     * and asks for it in a second request right away.
      */
     public function index(Request $request, Project $project): Response
     {
@@ -42,7 +44,7 @@ class PackageController extends Controller
 
         return Inertia::render('projects/packages/Index', [
             'project' => ProjectHeader::for($project, $user),
-            'packages' => $this->packageTree($project, $user),
+            'packages' => Inertia::defer(fn () => $this->packageTree($project, $user)),
             'categories' => $this->categories($project),
             'categoryRequired' => $project->number_includes_category,
             'statuses' => PackageStatus::options(),
