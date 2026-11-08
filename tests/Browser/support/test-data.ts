@@ -24,6 +24,13 @@ export const projects = {
     risk: { id: 6, name: 'Risk Project', code: 'RP6' },
     // For the risk check tests. The member and the admin are package owners here.
     riskCheck: { id: 7, name: 'Risk Check Project', code: 'RC7' },
+    // 300 packages, "Long list item 001" to "Long list item 300". The member is a viewer here.
+    longList: {
+        id: 8,
+        name: 'Long List Project',
+        code: 'LL8',
+        packageCount: 300,
+    },
 } as const;
 
 // The packages of the risk check project. Both have plenty of time before their need date at the start.

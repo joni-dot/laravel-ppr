@@ -33,7 +33,7 @@ class BrowserTestSeeder extends Seeder
         $member = User::factory()->create(['name' => 'Browser Member', 'email' => 'member@browser-test.example']);
         $manager = User::factory()->create(['name' => 'Browser Manager', 'email' => 'manager@browser-test.example']);
 
-        // The database is emptied first, so the projects get ids 1 to 7.
+        // The database is emptied first, so the projects get ids 1 to 8.
         Project::factory()
             ->withDefaultMilestones()
             ->withMember($manager, ProjectRole::ProjectManager)
@@ -80,6 +80,24 @@ class BrowserTestSeeder extends Seeder
 
         $this->addRiskProject($manager, $member);
         $this->addRiskCheckProject($manager, $member, $admin);
+        $this->addLongListProject($manager, $member);
+    }
+
+    /**
+     * For the long list tests: enough packages that the list draws only some of them at a time.
+     * The member is a viewer here.
+     */
+    private function addLongListProject(User $manager, User $member): void
+    {
+        $project = Project::factory()
+            ->withDefaultMilestones()
+            ->withMember($manager, ProjectRole::ProjectManager)
+            ->withMember($member, ProjectRole::Viewer)
+            ->create(['name' => 'Long List Project', 'code' => 'LL8', 'number_includes_category' => false]);
+
+        foreach (range(1, 300) as $number) {
+            $this->createPackage->handle($project, sprintf('Long list item %03d', $number), null);
+        }
     }
 
     /**

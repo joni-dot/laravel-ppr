@@ -70,6 +70,9 @@ test('an admin adds packages and sub-packages at any depth', async ({
     await expect(
         page.getByText('Package PP3-ELE-0002.01.01 added.'),
     ).toBeVisible();
+    // On a small screen the "added" notices can cover the Done button, and they stay while the pointer rests
+    // on them, as it does after clicking the add button in the last column. A person moves the pointer away.
+    await page.mouse.move(0, 0);
     await page.getByRole('button', { name: 'Done' }).click();
 
     const bolts = page.getByRole('link', { name: 'Bolts' });
