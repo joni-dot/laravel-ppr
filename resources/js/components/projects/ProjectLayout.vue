@@ -7,6 +7,7 @@ import ProjectMemberController from '@/actions/App/Http/Controllers/Projects/Pro
 import ProjectMilestoneController from '@/actions/App/Http/Controllers/Projects/ProjectMilestoneController';
 import ProjectNumberingController from '@/actions/App/Http/Controllers/Projects/ProjectNumberingController';
 import Heading from '@/components/Heading.vue';
+import { Spinner } from '@/components/ui/spinner';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { trans } from '@/lib/i18n';
 import { cn, toUrl } from '@/lib/utils';
@@ -16,7 +17,7 @@ const props = defineProps<{
     project: ProjectHeader;
 }>();
 
-const { isCurrentUrl, isCurrentOrParentUrl } = useCurrentUrl();
+const { isCurrentUrl, isCurrentOrParentUrl, isOpeningSlowly } = useCurrentUrl();
 
 type Tab = NavItem & {
     // Stays highlighted on the pages below it, such as a single package.
@@ -98,10 +99,11 @@ function isCurrentTab(tab: Tab): boolean {
                 v-for="tab in tabs"
                 :key="toUrl(tab.href)"
                 :href="tab.href"
+                prefetch
                 :aria-current="isCurrentTab(tab) ? 'page' : undefined"
                 :class="
                     cn(
-                        'border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
+                        'relative border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
                         isCurrentTab(tab)
                             ? 'border-primary text-foreground'
                             : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -109,6 +111,11 @@ function isCurrentTab(tab: Tab): boolean {
                 "
             >
                 {{ tab.title }}
+                <!-- In the tab's padding, so the tabs next to it don't move. -->
+                <Spinner
+                    v-if="isOpeningSlowly(tab.href)"
+                    class="absolute top-1/2 -right-1 size-3 -translate-y-1/2"
+                />
             </Link>
         </nav>
 

@@ -11,4 +11,9 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon;
     isActive?: boolean;
+    /**
+     * Navigation lists load a page while the pointer rests on its link. Set false for a page whose GET
+     * changes something, because that would then happen without a click.
+     */
+    prefetch?: boolean;
 };

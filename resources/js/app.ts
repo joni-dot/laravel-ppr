@@ -1,9 +1,14 @@
 import { createInertiaApp } from '@inertiajs/vue3';
 import { initializeTheme } from '@/composables/useAppearance';
+import {
+    initializeNavigationState,
+    SLOW_NAVIGATION_MS,
+} from '@/composables/useNavigationState';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import { initializePrefetchCache } from '@/lib/prefetchCache';
 import { loadLanguage, pageLocale, trans } from '@/lib/i18n';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -34,7 +39,10 @@ void createInertiaApp({
         });
     },
     progress: {
-        color: '#4B5563',
+        // Inertia puts the colour into the bar's style as it is, so the variable follows light and dark mode.
+        color: 'var(--primary)',
+        delay: SLOW_NAVIGATION_MS,
+        showSpinner: false,
     },
 });
 
@@ -43,3 +51,7 @@ initializeTheme();
 
 // This will listen for flash toast data from the server...
 initializeFlashToast();
+
+initializeNavigationState();
+
+initializePrefetchCache();

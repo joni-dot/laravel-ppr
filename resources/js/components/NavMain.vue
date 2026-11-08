@@ -7,6 +7,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { Spinner } from '@/components/ui/spinner';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import type { NavItem } from '@/types';
@@ -16,7 +17,7 @@ defineProps<{
     items: NavItem[];
 }>();
 
-const { isCurrentOrParentUrl } = useCurrentUrl();
+const { isCurrentOrParentUrl, isOpeningSlowly } = useCurrentUrl();
 </script>
 
 <template>
@@ -29,8 +30,16 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                     :is-active="isCurrentOrParentUrl(item.href)"
                     :tooltip="item.title"
                 >
-                    <Link :href="item.href">
-                        <component :is="item.icon" />
+                    <Link
+                        :href="item.href"
+                        :prefetch="item.prefetch ?? true"
+                        :aria-current="
+                            isCurrentOrParentUrl(item.href) ? 'page' : undefined
+                        "
+                    >
+                        <!-- In the icon's place, so it also shows when the sidebar is collapsed to icons. -->
+                        <Spinner v-if="isOpeningSlowly(item.href)" />
+                        <component :is="item.icon" v-else />
                         <span>{{ item.title }}</span>
                     </Link>
                 </SidebarMenuButton>
