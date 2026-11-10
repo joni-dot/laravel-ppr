@@ -24,6 +24,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | History Encryption
+    |--------------------------------------------------------------------------
+    |
+    | Inertia keeps every visited page's data in the browser's history, so the
+    | Back button could show it after signing out. Encrypted history becomes
+    | unreadable once signing out clears the key. Needs HTTPS (or localhost).
+    |
+    */
+
+    'history' => [
+        'encrypt' => (bool) env('INERTIA_ENCRYPT_HISTORY', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Pages
     |--------------------------------------------------------------------------
     |
