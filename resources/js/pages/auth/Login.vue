@@ -16,8 +16,7 @@ import { trans } from '@/lib/i18n';
 defineOptions({
     layout: () => ({
         title: trans('Log in to your account'),
-        description: () =>
-            trans('Enter your email and password below to log in'),
+        description: trans('Enter your email and password below to log in'),
     }),
 });
 

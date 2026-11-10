@@ -16,10 +16,9 @@ import { trans } from '@/lib/i18n';
 defineOptions({
     layout: () => ({
         title: trans('Confirm password'),
-        description: () =>
-            trans(
-                'This is a secure area of the application. Please confirm your password before continuing.',
-            ),
+        description: trans(
+            'This is a secure area of the application. Please confirm your password before continuing.',
+        ),
     }),
 });
 </script>

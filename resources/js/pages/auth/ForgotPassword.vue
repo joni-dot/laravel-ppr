@@ -13,8 +13,7 @@ import { email } from '@/routes/password';
 defineOptions({
     layout: () => ({
         title: trans('Forgot password'),
-        description: () =>
-            trans('Enter your email to receive a password reset link'),
+        description: trans('Enter your email to receive a password reset link'),
     }),
 });
 
