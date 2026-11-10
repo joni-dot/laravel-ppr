@@ -110,6 +110,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Password Reset Timebox
+    |--------------------------------------------------------------------------
+    |
+    | Asking for a reset link or resetting a password always takes at least
+    | this long (microseconds), so the answer time doesn't reveal whether an
+    | address has an account. It must be longer than the slowest real path:
+    | hashing the reset token (bcrypt) plus the database writes, which is
+    | about 0.3 s here. Laravel's default of 0.2 s is shorter than that.
+    |
+    */
+
+    'timebox_duration' => (int) env('AUTH_TIMEBOX_DURATION', 1_000_000),
+
+    /*
+    |--------------------------------------------------------------------------
     | Password Confirmation Timeout
     |--------------------------------------------------------------------------
     |

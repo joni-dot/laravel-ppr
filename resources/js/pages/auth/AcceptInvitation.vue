@@ -14,8 +14,9 @@ import { login } from '@/routes';
 defineOptions({
     layout: () => ({
         title: trans('Welcome aboard'),
-        description: () =>
-            trans('Choose a password to finish setting up your account'),
+        description: trans(
+            'Choose a password to finish setting up your account',
+        ),
     }),
 });
 

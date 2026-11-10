@@ -73,6 +73,8 @@ bin/sync-check --fix                     # see above
 - **Only `useNavigationState.ts` decides whether a page is loading.** It starts on the router's `before` event, because a click on a prefetched link fires no `start` or `finish`. Don't listen to router events for loading cues elsewhere.
 - **Prefetch only pages whose GET changes nothing.** Never prefetch notification links (opening marks read), Security settings (`RequirePassword`) or anything that writes. `lib/prefetchCache.ts` forgets every prefetched page after each save; keep it.
 - **The package tree is a deferred prop.** A form on the package list that keeps the page state must reload it with `only: ['packages']` (see `QuickAddPackage`'s `reloadOnly`), or the table falls back to its placeholder.
+- **Links in emails come from `APP_URL`,** never from the request's host name (`ResetPasswordLink`, trusted hosts in `bootstrap/app.php`). A new email with a link must do the same.
+- **Account forms must not reveal who has an account.** Forgot password always gives the same answer (`PasswordResetLinkRequestedResponse`); keep any new sign-in or reset message the same for known and unknown addresses.
 - **Records are kept.** Users are deactivated, never deleted.
 - **Seeders must refuse to run in production.** `SeedersRefuseProductionTest` covers this, so add any new seeder to it.
 - **Generated code:** `resources/js/actions`, `resources/js/routes` and `resources/js/wayfinder` are generated and ignored by git. Don't edit them.

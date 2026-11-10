@@ -17,7 +17,8 @@ class DeactivatedUserTest extends TestCase
         $this->actingAs($user)
             ->get(route('dashboard'))
             ->assertRedirect(route('login'))
-            ->assertSessionHas('status', 'Your account has been deactivated.');
+            ->assertSessionHas('status', 'Your account has been deactivated.')
+            ->assertSessionHas('inertia.clear_history', true);
 
         $this->assertGuest();
     }

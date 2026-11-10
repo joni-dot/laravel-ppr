@@ -4,11 +4,13 @@ namespace App\Notifications;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class UserInvitation extends Notification implements ShouldQueue
+// Encrypted in the queue because the job holds a working invitation token.
+class UserInvitation extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
 
