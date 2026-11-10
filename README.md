@@ -228,6 +228,14 @@ The Playwright version is set in three places that must match: `package.json`, `
 - **Never show user input as HTML.** Vue's `{{ }}` and Blade's `{{ }}` escape text automatically. Do not use `v-html` or `{!! !!}` with anything a user typed.
 - **Check permissions on the server.** Hiding a button is only for convenience; every route needs a `->can(...)` check.
 - **Keep secrets out of git.** This repository is public. Never commit `.env`, keys or real project data.
+- **Build links from `APP_URL`, never from the request.** Emails are read outside the app, so their links must not depend on the host name a request claims. Outside local development and tests the app only accepts requests for `APP_URL`'s own host name; set it to the real address.
+
+### Account protection
+
+- **Forgot password** gives the same answer whether or not the address has an account, so it can't be used to find out who uses the app, and a wrong reset link gets the same error for every address. Both answers always take at least one second (`AUTH_TIMEBOX_DURATION`), so their speed doesn't give it away either. Asking for links and resetting passwords are limited to 5 tries a minute per IP address. Reset and invitation emails are sent in the background, encrypted while they wait in the queue because they hold working links.
+- **Changing the email address** asks for the current password, and the old address gets an email about the change. Whoever controls the address can reset the password, so this keeps a few minutes at someone's unlocked computer from becoming a lasting takeover.
+- **Changing or resetting the password** signs out every other browser where the person was signed in (Laravel's `AuthenticateSession`).
+- **Signing out** (and every other way of landing on the sign-in page: an expired session, a password change elsewhere, a deactivated account) clears the pages the browser kept, so the Back button can't show them to the next person. The browser keeps them encrypted (Inertia's history encryption), which needs HTTPS or `localhost`.
 
 ## Ground rules
 
