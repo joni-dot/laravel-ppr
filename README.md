@@ -63,7 +63,7 @@ Admins set the company-wide **risk warning** defaults: a package turns amber or 
 
 ## Packages
 
-Each project's **Packages** tab shows all its packages as a tree that can be folded, searched and filtered by status and category.
+Each project's **Packages** tab shows all its packages as a tree that can be folded and searched, and filtered by status, category, risk level (amber or red, amber only, red only) and what needs attention (overdue, due within 14 days, missing owner or buyer, no need date, flagged by hand). The filters are kept in the page address, such as `/projects/9/packages?risk=red`, so a filtered list can be bookmarked, shared and reloaded. Changing a filter updates the address without asking the server and without adding a Back step.
 
 - **Quick adding:** type a title, pick a category and press Enter. The package gets the next number straight away, and the form stays open for the next one. The other details (status, purchase type, quantity, owner, buyer, description, notes) are filled in later on the package's edit page.
 - **Sub-packages** can be divided again without limit. A sub-package gets its parent's category unless another one, or none, is chosen.
@@ -95,6 +95,8 @@ For trying lists with realistic amounts of data, `./vendor/bin/sail artisan db:s
 - **Float:** the days between the expected need date and the need date. "12 days to spare", or "5 days late" when it is below zero.
 - **Sub-packages:** a package isn't ready until its sub-packages are, so a parent also shows the latest expected date among itself and all its sub-packages, and the float that gives. Cancelled sub-packages are left out.
 
+**Timeline.** Above the dates table, the package page draws its milestones on one line: a hollow ring for the planned date, a dot for the expected date and a green check for an actual date. A curve joins planned and expected when a milestone is later than planned, coloured like the package's risk (grey once the milestone is done). A dashed line marks today (UTC, as the risk rules count) and a blue line the need date. Hovering a milestone shows its dates, and screen readers hear every milestone with its dates. A package without dates shows no timeline.
+
 The package list shows each package's **next milestone** (the first one without an actual date) with its expected date, the need date, the expected need date including sub-packages, and the float ("−5 d" in red when late). The rules live in one place only, `app/Scheduling/PackageSchedule.php`; pages and lists only show its results.
 
 ## Risk levels
@@ -115,7 +117,32 @@ Each package is **red**, **amber** or not at risk. The level is worked out every
 - Only the float rolls up from sub-packages. A sub-package's overdue milestone or missing buyer makes the sub-package amber or red, not its parent.
 - Anyone who may edit a package can flag it as high risk on its page (reason up to 500 characters), change the reason and clear the flag. The page shows who flagged it and when.
 
-The package list has a **Risk** column (hover or a screen reader gives the reasons) and a filter for packages at risk (amber or red) or red only. The rules live in one place only, `app/Risk/PackageRisk.php`; `App\Risk\ProjectRisks::for($project)` works out every package of a project with three queries.
+The package list has a **Risk** column (hover or a screen reader gives the reasons) and filters for the risk level and its reasons. The rules live in one place only, `app/Risk/PackageRisk.php`; `App\Risk\ProjectRisks::for($project)` works out every package of a project with three queries.
+
+## Dashboard and project overview
+
+The **Dashboard** is personal. It covers only the projects you are a member of, admins included; an admin who belongs to no project gets a link to the Projects page.
+
+- **My next actions:** milestones of the open packages you own or buy that are overdue, or expected within your notification period (Settings → Notifications). It is the same rule as your date reminders; with 0 days, only overdue dates show. The most overdue come first. Up to 50 are listed, with the total.
+- **My projects:** one row per project with its red, amber, overdue and due-soon packages, plus missing owner or buyer, no need date and flagged.
+
+Each project's **Overview** tab shows how many packages are open and the same seven numbers, a count per status, and two charts:
+
+- **Open packages by category:** one bar per category, split into red, amber and no risk. The red and amber parts open those packages.
+- **Milestones due per week:** milestones not done yet, for this week and the 11 after it, labelled with each week's Monday. Overdue milestones are in the Overdue number instead.
+
+Every number above zero opens the package list filtered to exactly the packages it counts, and a browser test checks this for every number. The numbers mean:
+
+| Number                 | Packages it counts                                                        |
+| ---------------------- | ------------------------------------------------------------------------- |
+| Red, amber             | Their risk level                                                          |
+| Overdue                | A milestone not done was expected before today                            |
+| Due soon               | Open, and a milestone not done is expected within 14 days, today included |
+| Missing owner or buyer | No owner or buyer, or a deactivated one                                   |
+| No need date           | The need-date milestone has no planned date                               |
+| Flagged                | Flagged as high risk by hand                                              |
+
+The numbers are worked out live on each visit by `app/Dashboard/ProjectAttention.php`, the only place they are defined, and arrive just after the page with grey placeholders meanwhile. It takes a fixed number of queries per project, however many packages it has: about 0.2–0.3 s for a project of 2,600 packages. The list filter each number opens is in `resources/js/lib/packageFilters.ts`.
 
 ## Page loading
 
@@ -181,7 +208,7 @@ The interface is in English, built so that other languages can be added later wi
 3. Packages and sub-packages, with quick adding _(done)_
 4. Milestones (planned, forecast, actual dates) and delivery calculation from lead times _(done)_
 5. Risk levels and in-app notifications _(done)_
-6. Dashboard and visuals
+6. Dashboard and visuals _(done)_
 7. Merging and dividing packages, with full history
 8. Supplier link to the SRM app, Excel export
 9. Budget tracking
