@@ -12,10 +12,11 @@ final class PackageListSchedule
     /**
      * The columns for each package, keyed by package id.
      *
-     * @return array<int, array{nextMilestoneName: string|null, nextMilestoneDate: string|null, needDate: string|null, expectedNeedDate: string|null, floatDays: int|null}>
+     * @return array<int, array{nextMilestoneName: string|null, nextMilestoneDate: string|null, dueDate: string|null, needDate: string|null, expectedNeedDate: string|null, floatDays: int|null}>
      */
     public static function for(ProjectSchedules $schedules): array
     {
+        $today = now('UTC')->toDateString();
         $columns = [];
 
         foreach ($schedules->all() as $id => $schedule) {
@@ -24,6 +25,8 @@ final class PackageListSchedule
             $columns[$id] = [
                 'nextMilestoneName' => $next === null ? null : $schedules->milestoneName($next->milestoneId),
                 'nextMilestoneDate' => $next?->expected,
+                // For the "due soon" filter, which must count what the dashboard counts (ProjectAttention).
+                'dueDate' => $schedule->nextDue($today)?->expected,
                 'needDate' => $schedule->needDate(),
                 // A package isn't ready until its sub-packages are, so its float comes from the latest of them.
                 'expectedNeedDate' => $schedules->expectedNeedDateWithSubPackages($id),

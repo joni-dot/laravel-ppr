@@ -26,6 +26,7 @@ final class PackageScheduleOverview
      *     expectedNeedDate: string|null,
      *     floatDays: int|null,
      *     withSubPackages: array{expectedNeedDate: string|null, floatDays: int|null}|null,
+     *     today: string,
      * }
      */
     public static function for(Project $project, Package $package): array
@@ -58,6 +59,8 @@ final class PackageScheduleOverview
             'expectedNeedDate' => $schedule->expectedNeedDate(),
             'floatDays' => $schedule->float(),
             'withSubPackages' => $rolledUp === null ? null : self::needDateWithSubPackages($schedule, $rolledUp, $list),
+            // The day the risk rules count overdue from, so the page's timeline marks the same today.
+            'today' => now('UTC')->toDateString(),
         ];
     }
 

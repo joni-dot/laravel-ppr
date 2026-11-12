@@ -215,3 +215,24 @@ test('the list shows when a package is needed and how late it is', async ({
         'Late: expected 5 days after the need date',
     );
 });
+
+test('adding a package keeps the filters in the address', async ({ page }) => {
+    await page.goto(`/projects/${id}/packages?search=trolley`);
+    await expect(page.getByLabel('Search packages')).toHaveValue('trolley');
+    await expect(page.getByText(/^0 of \d+ packages match$/)).toBeVisible();
+
+    await page.getByLabel('Title of the new package').fill('Cable trolley');
+    await page
+        .getByRole('combobox', { name: 'Category' })
+        .first()
+        .selectOption({ label: 'ELE – Electrical' });
+    await page.getByRole('button', { name: 'Add package' }).click();
+    await expect(page.getByText(/Package PP3-ELE-\d+ added\./)).toBeVisible();
+
+    // The list reloads from the filtered address, so the filter stays and finds the new package.
+    await expect(page).toHaveURL(/\/packages\?search=trolley$/);
+    await expect(page.getByText(/^1 of \d+ packages match$/)).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel('Search packages')).toHaveValue('trolley');
+    await expect(page.getByText(/^1 of \d+ packages match$/)).toBeVisible();
+});

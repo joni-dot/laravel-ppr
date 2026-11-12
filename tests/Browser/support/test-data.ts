@@ -33,6 +33,39 @@ export const projects = {
     },
 } as const;
 
+// Every number of the dashboard project, as ProjectAttention counts them. The member is a package owner
+// here and owns "Overdue order" (Order placed 3 days ago) and "Coming delivery" (delivery in 5 days).
+export const dashboardProject = {
+    id: 9,
+    name: 'Dashboard Project',
+    code: 'DP9',
+    tiles: {
+        total: 6,
+        open: 5,
+        red: 2, // Overdue order, Flagged switchgear
+        amber: 2, // Buyerless cable, Undated panel
+        overdue: 1, // Overdue order
+        dueSoon: 1, // Coming delivery
+        missingPeople: 1, // Buyerless cable
+        noNeedDate: 1, // Undated panel
+        flagged: 1, // Flagged switchgear
+    },
+    memberActions: [
+        {
+            kind: 'overdue',
+            title: 'Overdue order',
+            milestone: 'Order placed',
+            daysAgo: 3,
+        },
+        {
+            kind: 'coming_up',
+            title: 'Coming delivery',
+            milestone: 'Delivered from supplier',
+            daysLeft: 5,
+        },
+    ],
+} as const;
+
 // The packages of the risk check project. Both have plenty of time before their need date at the start.
 export const riskCheckPackages = {
     // The member owns it.

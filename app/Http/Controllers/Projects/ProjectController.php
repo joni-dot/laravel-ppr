@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Projects;
 use App\Actions\Projects\CreateProject;
 use App\Enums\ProjectRole;
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\ProjectAttentionOverview;
 use App\Http\Presenters\ProjectHeader;
 use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
@@ -92,6 +93,8 @@ class ProjectController extends Controller
                 'redDays' => $project->risk_red_days,
             ],
             'exampleNumbers' => $this->exampleNumbers($project),
+            // Deferred: it reads every package, so the tab opens first and the numbers follow.
+            'attention' => Inertia::defer(fn () => ProjectAttentionOverview::for($project)),
         ]);
     }
 

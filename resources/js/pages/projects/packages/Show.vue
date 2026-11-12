@@ -9,6 +9,7 @@ import FormField from '@/components/FormField.vue';
 import Heading from '@/components/Heading.vue';
 import PackageRiskBadge from '@/components/packages/PackageRiskBadge.vue';
 import PackageStatusBadge from '@/components/packages/PackageStatusBadge.vue';
+import PackageTimeline from '@/components/packages/PackageTimeline.vue';
 import QuickAddPackage from '@/components/packages/QuickAddPackage.vue';
 import ProjectLayout from '@/components/projects/ProjectLayout.vue';
 import { Badge } from '@/components/ui/badge';
@@ -361,6 +362,8 @@ function floatOrDash(days: number | null): string {
                     </Link>
                 </Button>
             </div>
+
+            <PackageTimeline :schedule="schedule" :risk-level="risk.level" />
 
             <div class="overflow-x-auto rounded-xl border">
                 <table class="w-full text-sm">

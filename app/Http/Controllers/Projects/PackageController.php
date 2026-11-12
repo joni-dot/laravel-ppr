@@ -45,6 +45,9 @@ class PackageController extends Controller
         return Inertia::render('projects/packages/Index', [
             'project' => ProjectHeader::for($project, $user),
             'packages' => Inertia::defer(fn () => $this->packageTree($project, $user)),
+            // The day the rows' due dates were worked out for, so the "due soon" filter counts from the same day as
+            // the dashboard, whatever the browser's clock says. Loaded in the same request as the tree.
+            'today' => Inertia::defer(fn () => now('UTC')->toDateString()),
             'categories' => $this->categories($project),
             'categoryRequired' => $project->number_includes_category,
             'statuses' => PackageStatus::options(),
