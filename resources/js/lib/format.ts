@@ -20,3 +20,17 @@ export function formatDateTime(isoDateTime: string): string {
         timeStyle: 'short',
     });
 }
+
+const shortDateFormat = new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+});
+
+/**
+ * Shows a date-only value with its day and month only, such as "9 Nov", for labels with little room.
+ */
+export function formatShortDate(isoDate: string): string {
+    const [year, month, day] = isoDate.split('-').map(Number);
+
+    return shortDateFormat.format(new Date(year, month - 1, day));
+}

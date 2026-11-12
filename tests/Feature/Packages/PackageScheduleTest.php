@@ -293,6 +293,17 @@ class PackageScheduleTest extends TestCase
                 ->where('schedule.withSubPackages', null));
     }
 
+    public function test_the_package_page_counts_today_in_utc_like_the_risk_rules()
+    {
+        $package = $this->addPackage('Transformer');
+        // Already 2 January east of UTC, where the limit for actual dates is.
+        $this->travelTo(now('UTC')->setDate(2027, 1, 1)->setTime(23, 30));
+
+        $this->actingAs($this->member(ProjectRole::Viewer))
+            ->get(route('projects.packages.show', [$this->project, $package]))
+            ->assertInertia(fn ($page) => $page->where('schedule.today', '2027-01-01'));
+    }
+
     public function test_a_parent_shows_the_latest_expected_dates_of_its_sub_packages_without_cancelled_ones()
     {
         $parent = $this->addPackage('Transformer');

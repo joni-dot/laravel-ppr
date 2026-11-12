@@ -29,6 +29,8 @@ export type PackageScheduleSummary = {
         expectedNeedDate: string | null;
         floatDays: number | null;
     } | null;
+    // "YYYY-MM-DD" in UTC, the day the risk rules count overdue from.
+    today: string;
 };
 
 /**

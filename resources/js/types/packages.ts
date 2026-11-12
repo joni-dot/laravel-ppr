@@ -33,6 +33,8 @@ export type PackageRow = {
     // The first milestone that hasn't happened yet, and when it is expected.
     nextMilestoneName: string | null;
     nextMilestoneDate: string | null;
+    // The first date from today on of a milestone not done yet, for the "due soon" filter.
+    dueDate: string | null;
     // The planned date of the project's need-date milestone.
     needDate: string | null;
     // The latest expected need date of this package and its sub-packages.

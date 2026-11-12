@@ -33,7 +33,7 @@ class BrowserTestSeeder extends Seeder
         $member = User::factory()->create(['name' => 'Browser Member', 'email' => 'member@browser-test.example']);
         $manager = User::factory()->create(['name' => 'Browser Manager', 'email' => 'manager@browser-test.example']);
 
-        // The database is emptied first, so the projects get ids 1 to 8.
+        // The database is emptied first, so the projects get ids 1 to 9.
         Project::factory()
             ->withDefaultMilestones()
             ->withMember($manager, ProjectRole::ProjectManager)
@@ -81,6 +81,59 @@ class BrowserTestSeeder extends Seeder
         $this->addRiskProject($manager, $member);
         $this->addRiskCheckProject($manager, $member, $admin);
         $this->addLongListProject($manager, $member);
+        $this->addDashboardProject($manager, $member);
+    }
+
+    /**
+     * For the dashboard tests: one package behind each number, with dates counted from today so the numbers
+     * stay the same whenever the tests run. The member owns two of them and is a package owner here.
+     * Nothing changes this project, so every dashboard test can read it.
+     */
+    private function addDashboardProject(User $manager, User $member): void
+    {
+        $project = Project::factory()
+            ->withDefaultMilestones()
+            ->withMember($manager, ProjectRole::ProjectManager)
+            ->withMember($member, ProjectRole::PackageOwner)
+            ->create(['name' => 'Dashboard Project', 'code' => 'DP9', 'number_includes_category' => true, 'risk_amber_days' => 7, 'risk_red_days' => 0]);
+        $electrical = ProjectCategory::factory()->for($project)->create(['code' => 'ELE', 'name' => 'Electrical']);
+        $mechanical = ProjectCategory::factory()->for($project)->create(['code' => 'MEC', 'name' => 'Mechanical']);
+        $milestoneIds = $project->milestones()->pluck('id', 'name');
+        $today = now('UTC');
+        $plenty = ['Required on site' => ['planned_date' => '2099-06-01', 'forecast_date' => '2099-01-01']];
+
+        $this->addDashboardPackage($project, 'Overdue order', $mechanical, $member, $manager, $milestoneIds, [
+            ...$plenty,
+            'Order placed' => ['planned_date' => $today->copy()->subDays(3)->toDateString()],
+        ]);
+        $this->addDashboardPackage($project, 'Coming delivery', $mechanical, $member, $manager, $milestoneIds, [
+            ...$plenty,
+            'Delivered from supplier' => ['forecast_date' => $today->copy()->addDays(5)->toDateString()],
+        ]);
+        $this->addDashboardPackage($project, 'Buyerless cable', $electrical, $manager, null, $milestoneIds, $plenty);
+        $flagged = $this->addDashboardPackage($project, 'Flagged switchgear', $electrical, $manager, $manager, $milestoneIds, $plenty);
+        $flagged->forceFill(['risk_flag_reason' => 'Supplier close to bankruptcy', 'risk_flagged_by_id' => $manager->id, 'risk_flagged_at' => now()])->save();
+        $this->addDashboardPackage($project, 'Undated panel', $electrical, $manager, $manager, $milestoneIds, []);
+        $closed = $this->addDashboardPackage($project, 'Closed pump', $mechanical, $manager, $manager, $milestoneIds, [
+            'Order placed' => ['planned_date' => '2020-01-15'],
+        ]);
+        $closed->forceFill(['status' => PackageStatus::Closed])->save();
+    }
+
+    /**
+     * @param  Collection<string, int>  $milestoneIds
+     * @param  array<string, array<string, string>>  $dates  per milestone name
+     */
+    private function addDashboardPackage(Project $project, string $title, ProjectCategory $category, User $owner, ?User $buyer, Collection $milestoneIds, array $dates): Package
+    {
+        $package = $this->createPackage->handle($project, $title, $category);
+        $package->forceFill(['owner_id' => $owner->id, 'buyer_id' => $buyer?->id, 'status' => PackageStatus::Ordered])->save();
+
+        foreach ($dates as $milestone => $values) {
+            PackageMilestone::factory()->for($package)->create(['project_milestone_id' => $milestoneIds[$milestone], ...$values]);
+        }
+
+        return $package;
     }
 
     /**
