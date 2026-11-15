@@ -1,5 +1,6 @@
 import { shownDate } from '../support/dates';
 import { projects, riskPackages } from '../support/test-data';
+import { expectSubPackageOfCancelledPackageExplained } from '../support/finished-parent';
 import { expect, test } from '../support/test';
 
 const { id } = projects.risk;
@@ -62,7 +63,7 @@ test('the package page explains why a package is at risk', async ({ page }) => {
     const panel = page.getByRole('region', { name: 'Risk' });
     await expect(panel.getByTestId('risk-badge')).toHaveText('Red');
     await expect(panel).toContainText(
-        `Overdue: Order placed was expected on ${await shownDate(page, overduePump.overdueOrder)}`,
+        `Overdue: Order placed was due on ${await shownDate(page, overduePump.overdueOrder)}`,
     );
 });
 
@@ -117,4 +118,10 @@ test('an admin flags a package as high risk, changes the reason and clears it', 
     await expect(panel.getByLabel('Reason for the high-risk flag')).toHaveValue(
         '',
     );
+});
+
+test('a sub-package of a cancelled package is never at risk, and its page tells an admin why', async ({
+    page,
+}) => {
+    await expectSubPackageOfCancelledPackageExplained(page);
 });

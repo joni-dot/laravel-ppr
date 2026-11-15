@@ -71,6 +71,14 @@ function datesInWords(milestone: TimelineMilestone): string {
         );
     }
 
+    if (milestone.missedDueDate !== null) {
+        parts.push(
+            trans('was due :date and is overdue', {
+                date: formatDate(milestone.missedDueDate),
+            }),
+        );
+    }
+
     if (milestone.current !== null) {
         parts.push(
             milestone.isDone
@@ -88,6 +96,13 @@ function datesInWords(milestone: TimelineMilestone): string {
         dates: parts.join(', '),
     });
 }
+
+const hasOverdue = computed(
+    () =>
+        layout.value?.milestones.some(
+            (milestone) => milestone.missedDueDate !== null,
+        ) ?? false,
+);
 
 const summary = computed(() =>
     layout.value === null
@@ -242,8 +257,18 @@ function checkPath(x: number, y: number): string {
                         :cx="milestone.currentX"
                         :cy="layout.axisY"
                         r="4"
-                        class="fill-foreground stroke-background"
+                        class="stroke-background"
+                        :class="
+                            milestone.missedDueDate === null
+                                ? 'fill-foreground'
+                                : 'fill-destructive'
+                        "
                         stroke-width="1.5"
+                        :data-test="
+                            milestone.missedDueDate === null
+                                ? undefined
+                                : 'timeline-overdue'
+                        "
                     />
                 </template>
             </g>
@@ -293,6 +318,12 @@ function checkPath(x: number, y: number): string {
                     <circle cx="8" cy="8" r="4" class="fill-foreground" />
                 </svg>
                 {{ $t('Expected') }}
+            </span>
+            <span v-if="hasOverdue" class="inline-flex items-center gap-1.5">
+                <svg viewBox="0 0 16 16" class="size-3.5">
+                    <circle cx="8" cy="8" r="4" class="fill-destructive" />
+                </svg>
+                {{ $t('Overdue, now expected today or later') }}
             </span>
             <span class="inline-flex items-center gap-1.5">
                 <svg viewBox="0 0 16 16" class="size-3.5">

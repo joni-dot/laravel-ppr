@@ -66,18 +66,25 @@ const props = defineProps<{
 
 const flagForm = useForm({ reason: props.risk.flag?.reason ?? '' });
 
-const isClosedOrCancelled = computed(
-    () =>
-        props.package.status === 'closed' ||
-        props.package.status === 'cancelled',
-);
+// Why a finished package is never at risk: its own status, or a closed or cancelled package above it.
+const finishedNote = computed(() => {
+    if (!props.risk.isFinished) {
+        return null;
+    }
+
+    return props.risk.belowAFinishedPackage && !props.risk.isItselfFinished
+        ? trans(
+              'A package above this one is closed or cancelled, so this one counts as finished: it is never at risk and gets no date reminders.',
+          )
+        : trans('Closed and cancelled packages are never at risk.');
+});
 
 const riskReasons = computed(() =>
     props.risk.reasons.map((reason) =>
         riskReasonInWords(reason, {
             floatDays: props.risk.floatDays,
             overdueMilestone: props.risk.overdueMilestone?.name,
-            overdueDate: props.risk.overdueMilestone?.expected,
+            overdueDate: props.risk.overdueMilestone?.due,
             flagReason: props.risk.flag?.reason,
         }),
     ),
@@ -229,8 +236,12 @@ function floatOrDash(days: number | null): string {
                 />
             </div>
 
-            <p v-if="isClosedOrCancelled" class="text-sm text-muted-foreground">
-                {{ $t('Closed and cancelled packages are never at risk.') }}
+            <p
+                v-if="finishedNote"
+                class="text-sm text-muted-foreground"
+                data-test="risk-finished-note"
+            >
+                {{ finishedNote }}
             </p>
             <p
                 v-else-if="risk.reasons.length === 0"

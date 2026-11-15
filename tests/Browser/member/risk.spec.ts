@@ -1,4 +1,5 @@
 import { projects, riskPackages } from '../support/test-data';
+import { expectSubPackageOfCancelledPackageExplained } from '../support/finished-parent';
 import { expect, test } from '../support/test';
 
 const { id } = projects.risk;
@@ -37,4 +38,10 @@ test('a viewer sees risk but cannot flag a package', async ({ page }) => {
         },
     );
     expect(response.status()).toBe(403);
+});
+
+test('a sub-package of a cancelled package is never at risk, and its page tells a viewer why', async ({
+    page,
+}) => {
+    await expectSubPackageOfCancelledPackageExplained(page);
 });

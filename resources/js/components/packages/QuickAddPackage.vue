@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
-import { onMounted, useTemplateRef } from 'vue';
+import { onMounted, useTemplateRef, watch } from 'vue';
 import PackageController from '@/actions/App/Http/Controllers/Projects/PackageController';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -49,13 +49,28 @@ function focusTitle(): void {
     (titleInput.value?.$el as HTMLInputElement | undefined)?.focus();
 }
 
+// Counts changes to the title, so a save can tell whether someone typed after sending, even the same text again.
+let titleChanges = 0;
+watch(
+    () => form.title,
+    () => titleChanges++,
+    { flush: 'sync' },
+);
+
 function add(): void {
+    const changesWhenSent = titleChanges;
+
     form.post(PackageController.store.url(props.projectId), {
         preserveScroll: true,
         preserveState: true,
         only: props.reloadOnly ?? [],
         onSuccess: () => {
-            form.reset('title');
+            // Someone may have typed the next title while this one was saving; keep what they typed. Cleared
+            // by hand, not with reset(): after each success the form takes its current values as the defaults.
+            if (titleChanges === changesWhenSent) {
+                form.title = '';
+            }
+
             focusTitle();
         },
     });

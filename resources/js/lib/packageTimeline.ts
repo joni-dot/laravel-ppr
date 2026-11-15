@@ -15,6 +15,8 @@ export type TimelineMilestone = {
     planned: string | null;
     // The actual date once it happened, else the expected date.
     current: string | null;
+    // The due date it missed. Its expected date is then today or later, so the slip starts at the planned date.
+    missedDueDate: string | null;
     plannedX: number | null;
     currentX: number | null;
     // When the current date is later than planned: the curve between the two markers.
@@ -130,6 +132,7 @@ export function layoutTimeline(
                 isDone: milestone.isDone,
                 planned: milestone.planned,
                 current,
+                missedDueDate: milestone.missedDueDate,
                 plannedX,
                 currentX,
                 slipPath:

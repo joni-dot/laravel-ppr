@@ -20,17 +20,23 @@ test('a package page shows its milestone dates on a timeline that screen readers
             shownDate(page, date),
         ),
     );
-    const description = await timeline.getAttribute('aria-label');
+    const description = (await timeline.getAttribute('aria-label')) ?? '';
+    // The server's today, as the timeline says it, so a run across midnight can't disagree.
+    const today = /Today is (.+)\.$/.exec(description)?.[1];
+    expect(today).toBeTruthy();
+    // The missed order date is named, and the order is now expected no earlier than today.
     expect(description).toContain(
-        `Order placed: planned ${order}, expected ${order}`,
+        `Order placed: planned ${order}, was due ${order} and is overdue, expected ${today}`,
     );
     expect(description).toContain(
         `Required on site (need date): planned ${needPlanned}, expected ${needExpected}`,
     );
 
-    // Only the two milestones with dates are drawn. The forecast is earlier than planned, so nothing slipped.
+    // Only the two milestones with dates are drawn. The order slipped from its planned date to today and is
+    // marked overdue; the need date's forecast is earlier than planned, so it didn't slip.
     await expect(timeline.getByTestId('timeline-milestone')).toHaveCount(2);
-    await expect(timeline.getByTestId('timeline-slip')).toHaveCount(0);
+    await expect(timeline.getByTestId('timeline-slip')).toHaveCount(1);
+    await expect(timeline.getByTestId('timeline-overdue')).toHaveCount(1);
     await expect(timeline.getByTestId('timeline-today')).toHaveCount(1);
     await expect(timeline.getByTestId('timeline-need-date')).toHaveCount(1);
 });
