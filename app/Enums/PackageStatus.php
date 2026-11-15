@@ -30,6 +30,23 @@ enum PackageStatus: string
     }
 
     /**
+     * Closed and cancelled packages are finished: never at risk, no reminders. So is everything below them;
+     * ProjectSchedules::isFinished() knows the tree.
+     */
+    public function isFinished(): bool
+    {
+        return in_array($this, self::finished(), true);
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function finished(): array
+    {
+        return [self::Closed, self::Cancelled];
+    }
+
+    /**
      * @return list<array{value: string, label: string}>
      */
     public static function options(): array

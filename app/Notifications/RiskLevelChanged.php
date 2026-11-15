@@ -37,7 +37,7 @@ class RiskLevelChanged extends PackageNotification
         $this->from = $from->value;
         $this->to = $risk->level->value;
         $this->reasons = array_map(fn (RiskReason $reason) => $reason->value, $risk->reasons);
-        $this->overdueDate = $risk->overdueMilestone?->expected;
+        $this->overdueDate = $risk->overdueMilestone?->due();
     }
 
     public static function kind(): string

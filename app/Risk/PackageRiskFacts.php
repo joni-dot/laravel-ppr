@@ -2,7 +2,6 @@
 
 namespace App\Risk;
 
-use App\Enums\PackageStatus;
 use App\Scheduling\PackageSchedule;
 
 /**
@@ -11,7 +10,8 @@ use App\Scheduling\PackageSchedule;
 final readonly class PackageRiskFacts
 {
     public function __construct(
-        public PackageStatus $status,
+        // Closed or cancelled, itself or a package above it.
+        public bool $isFinished,
         // The package's own milestones, for overdue dates and the need date.
         public PackageSchedule $schedule,
         // Counting sub-packages, as the package list shows it: a package isn't ready until they are.

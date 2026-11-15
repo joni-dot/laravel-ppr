@@ -72,16 +72,35 @@ class BrowserTestSeeder extends Seeder
             ->withMember($manager, ProjectRole::ProjectManager)
             ->withMember($member, ProjectRole::Buyer)
             ->create(['name' => 'Notification Project', 'code' => 'NP5']);
-        $this->createPackage->handle(
-            $notificationProject,
-            'Notified valve',
-            ProjectCategory::factory()->for($notificationProject)->create(['code' => 'MEC', 'name' => 'Mechanical']),
-        );
+        $notifiedMechanical = ProjectCategory::factory()->for($notificationProject)->create(['code' => 'MEC', 'name' => 'Mechanical']);
+        $this->createPackage->handle($notificationProject, 'Notified valve', $notifiedMechanical);
 
         $this->addRiskProject($manager, $member);
         $this->addRiskCheckProject($manager, $member, $admin);
         $this->addLongListProject($manager, $member);
         $this->addDashboardProject($manager, $member);
+        // Last, so the package ids above don't move.
+        $this->addFinishedParentProject($manager, $member);
+        $this->addSummaryPackages($notificationProject, $notifiedMechanical, $member);
+    }
+
+    /**
+     * For the summary notification test: eleven packages of the notification project that the member owns and
+     * buys, with plenty of spare time (151 days). Raising the project's amber warning above that turns all of them
+     * amber at once, which is more than the ten notices one check sends a person one by one.
+     */
+    private function addSummaryPackages(Project $project, ProjectCategory $category, User $member): void
+    {
+        $needDateId = $project->milestones()->where('name', 'Required on site')->value('id');
+
+        foreach (range(1, 11) as $number) {
+            $package = $this->createPackage->handle($project, sprintf('Summary pump %02d', $number), $category);
+            $package->forceFill(['owner_id' => $member->id, 'buyer_id' => $member->id, 'status' => PackageStatus::Ordered])->save();
+            PackageMilestone::factory()->for($package)->create(['project_milestone_id' => $needDateId, 'planned_date' => '2099-06-01', 'forecast_date' => '2099-01-01']);
+        }
+
+        // The first check only stores the levels, so the test's change is the one people hear about.
+        CheckProjectRisks::dispatchSync($project->id);
     }
 
     /**
@@ -134,6 +153,24 @@ class BrowserTestSeeder extends Seeder
         }
 
         return $package;
+    }
+
+    /**
+     * A cancelled package with a sub-package that would be red on its own: no owner, buyer or need date, and an
+     * order date long past. Below a cancelled package it counts as finished.
+     */
+    private function addFinishedParentProject(User $manager, User $member): void
+    {
+        $project = Project::factory()
+            ->withDefaultMilestones()
+            ->withMember($manager, ProjectRole::ProjectManager)
+            ->withMember($member, ProjectRole::Viewer)
+            ->create(['name' => 'Finished Parent Project', 'code' => 'FP10', 'number_includes_category' => false]);
+        $milestoneIds = $project->milestones()->pluck('id', 'name');
+
+        $frame = $this->addRiskPackage($project, 'Cancelled frame', null, $manager, $milestoneIds, []);
+        $this->addRiskPackage($project, 'Leftover bolts', $frame, null, $milestoneIds, ['Order placed' => ['planned_date' => '2020-01-15']]);
+        $frame->forceFill(['status' => PackageStatus::Cancelled])->save();
     }
 
     /**

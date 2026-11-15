@@ -1,7 +1,11 @@
 import { formatDate } from '@/lib/format';
 import { trans } from '@/lib/i18n';
 import { riskLevelInWords, riskReasonInWords } from '@/lib/packageRisk';
-import type { InAppNotification, NotificationKind } from '@/types';
+import type {
+    InAppNotification,
+    NotificationKind,
+    PackageInAppNotification,
+} from '@/types';
 
 type ParamsOf<Kind extends NotificationKind['kind']> = Extract<
     NotificationKind,
@@ -12,6 +16,25 @@ type ParamsOf<Kind extends NotificationKind['kind']> = Extract<
  * The sentence shown for a notification, one case per kind. TypeScript refuses to build while a kind has no case.
  */
 export function notificationMessage(notification: InAppNotification): string {
+    if (notification.kind === 'risk_changes_summary') {
+        return trans(
+            ':count packages in :project changed risk level: :red now red, :amber now amber, :none no longer at risk.',
+            {
+                project: notification.projectName,
+                count: notification.params.changed,
+                red: notification.params.red,
+                amber: notification.params.amber,
+                none: notification.params.none,
+            },
+        );
+    }
+
+    return packageNotificationMessage(notification);
+}
+
+function packageNotificationMessage(
+    notification: PackageInAppNotification,
+): string {
     const replacements = {
         package: `${notification.packageNumber} ${notification.packageTitle}`,
     };
@@ -31,7 +54,7 @@ export function notificationMessage(notification: InAppNotification): string {
             );
         case 'date_overdue':
             return trans(
-                ":package: :milestone was expected on :date and isn't marked done.",
+                ":package: :milestone was due on :date and isn't marked done.",
                 {
                     ...replacements,
                     milestone: notification.params.milestone,
@@ -60,17 +83,17 @@ function dateComingUpMessage(
     switch (params.days_left) {
         case 0:
             return trans(
-                ':package: :milestone is expected today (:date).',
+                ':package: :milestone is due today (:date).',
                 replacements,
             );
         case 1:
             return trans(
-                ':package: :milestone is expected tomorrow (:date).',
+                ':package: :milestone is due tomorrow (:date).',
                 replacements,
             );
         default:
             return trans(
-                ':package: :milestone is expected in :count days (:date).',
+                ':package: :milestone is due in :count days (:date).',
                 replacements,
             );
     }

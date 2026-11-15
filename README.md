@@ -90,12 +90,13 @@ For trying lists with realistic amounts of data, `./vendor/bin/sail artisan db:s
 
 **What the app works out:**
 
-- **Expected date** of each milestone: the actual date if it has happened, else the forecast, else the previous milestone's expected date plus the lead time, else the planned date. So a late order pushes every later milestone back.
+- **Expected date** of each milestone: the actual date if it has happened, else the forecast, else the previous milestone's expected date plus the lead time, else the planned date. A milestone that hasn't happened is never expected before today: once its date has passed, it moves forward with each day until someone marks it done, so the float shrinks daily. So a late order pushes every later milestone back.
+- **Due date:** the forecast, else the planned date: the date someone committed to. A milestone is overdue once its due date has passed without an actual date, and due soon, the date reminders and your next actions count from it too. The expected date is only an estimate, so a package ahead of plan is never overdue, and a milestone with only a lead time is never due. To move the date a milestone is due, change its forecast.
 - **Latest date:** counting back from the need date with the lead times, the last day each earlier milestone can happen without making the package late. A missing lead time leaves the earlier latest dates unknown instead of guessing zero days.
 - **Float:** the days between the expected need date and the need date. "12 days to spare", or "5 days late" when it is below zero.
-- **Sub-packages:** a package isn't ready until its sub-packages are, so a parent also shows the latest expected date among itself and all its sub-packages, and the float that gives. Cancelled sub-packages are left out.
+- **Sub-packages:** a package isn't ready until its sub-packages are, so a parent also shows the latest expected date among itself and all its sub-packages, and the float that gives. Closed and cancelled sub-packages, and everything below them, are left out.
 
-**Timeline.** Above the dates table, the package page draws its milestones on one line: a hollow ring for the planned date, a dot for the expected date and a green check for an actual date. A curve joins planned and expected when a milestone is later than planned, coloured like the package's risk (grey once the milestone is done). A dashed line marks today (UTC, as the risk rules count) and a blue line the need date. Hovering a milestone shows its dates, and screen readers hear every milestone with its dates. A package without dates shows no timeline.
+**Timeline.** Above the dates table, the package page draws its milestones on one line: a hollow ring for the planned date, a dot for the expected date and a green check for an actual date. A curve joins planned and expected when a milestone is later than planned, coloured like the package's risk (grey once the milestone is done). A dashed line marks today (UTC, as the risk rules count) and a blue line the need date. Hovering a milestone shows its dates, and screen readers hear every milestone with its dates. An overdue milestone's dot is red and sits on today's line, and hovering or a screen reader names the date it was due. A package without dates shows no timeline.
 
 The package list shows each package's **next milestone** (the first one without an actual date) with its expected date, the need date, the expected need date including sub-packages, and the float ("−5 d" in red when late). The rules live in one place only, `app/Scheduling/PackageSchedule.php`; pages and lists only show its results.
 
@@ -106,14 +107,14 @@ Each package is **red**, **amber** or not at risk. The level is worked out every
 | Reason                                                                              | Level |
 | ----------------------------------------------------------------------------------- | ----- |
 | Flagged as high risk by hand, with a reason                                         | Red   |
-| Overdue: a milestone without an actual date was expected before today (UTC)         | Red   |
+| Overdue: a milestone without an actual date has passed its due date (UTC)           | Red   |
 | Float (counting sub-packages, as the list shows it) below the project's red warning | Red   |
 | Float below the project's amber warning                                             | Amber |
 | No planned need date, so the float can't be judged                                  | Amber |
 | No package owner or responsible buyer, or theirs is deactivated                     | Amber |
 
 - "Below" means the number itself is still fine: with amber at 7 days, 7 days to spare is not at risk and 6 is amber. A package with only a planned need date is expected exactly then, so it has no days to spare and is amber under the company defaults (amber below 7 days, red below 0).
-- Closed and cancelled packages are never at risk.
+- Closed and cancelled packages are never at risk, and neither is any package below one, at any depth: it counts as finished, gets no date reminders and keeps its own status. Its page explains why.
 - Only the float rolls up from sub-packages. A sub-package's overdue milestone or missing buyer makes the sub-package amber or red, not its parent.
 - Anyone who may edit a package can flag it as high risk on its page (reason up to 500 characters), change the reason and clear the flag. The page shows who flagged it and when.
 
@@ -123,24 +124,24 @@ The package list has a **Risk** column (hover or a screen reader gives the reaso
 
 The **Dashboard** is personal. It covers only the projects you are a member of, admins included; an admin who belongs to no project gets a link to the Projects page.
 
-- **My next actions:** milestones of the open packages you own or buy that are overdue, or expected within your notification period (Settings → Notifications). It is the same rule as your date reminders; with 0 days, only overdue dates show. The most overdue come first. Up to 50 are listed, with the total.
+- **My next actions:** milestones of the open packages you own or buy that are overdue, or due within your notification period (Settings → Notifications). It is the same rule as your date reminders; with 0 days, only overdue dates show. The most overdue come first. Up to 50 are listed, with the total.
 - **My projects:** one row per project with its red, amber, overdue and due-soon packages, plus missing owner or buyer, no need date and flagged.
 
 Each project's **Overview** tab shows how many packages are open and the same seven numbers, a count per status, and two charts:
 
 - **Open packages by category:** one bar per category, split into red, amber and no risk. The red and amber parts open those packages, except in the "No category" bar: the package list can't filter for packages without a category.
-- **Milestones due per week:** milestones not done yet, for this week and the 11 after it, labelled with each week's Monday. Overdue milestones are in the Overdue number instead.
+- **Milestones due per week:** milestones not done yet, by due date, for this week and the 11 after it, labelled with each week's Monday. Overdue milestones are in the Overdue number instead.
 
 Every tile and status count above zero opens the package list filtered to exactly the packages it counts, and a browser test checks this. The open-packages total and the weekly milestone counts aren't links. The tiles mean:
 
-| Number                 | Packages it counts                                                        |
-| ---------------------- | ------------------------------------------------------------------------- |
-| Red, amber             | Their risk level                                                          |
-| Overdue                | A milestone not done was expected before today                            |
-| Due soon               | Open, and a milestone not done is expected within 14 days, today included |
-| Missing owner or buyer | No owner or buyer, or a deactivated one                                   |
-| No need date           | The need-date milestone has no planned date                               |
-| Flagged                | Flagged as high risk by hand                                              |
+| Number                 | Packages it counts                                                   |
+| ---------------------- | -------------------------------------------------------------------- |
+| Red, amber             | Their risk level                                                     |
+| Overdue                | A milestone not done has passed its due date                         |
+| Due soon               | Open, and a milestone not done is due within 14 days, today included |
+| Missing owner or buyer | No owner or buyer, or a deactivated one                              |
+| No need date           | The need-date milestone has no planned date                          |
+| Flagged                | Flagged as high risk by hand                                         |
 
 The numbers are worked out live on each visit by `app/Dashboard/ProjectAttention.php`, the only place they are defined, and arrive just after the page with grey placeholders meanwhile. It takes a fixed number of queries per project, however many packages it has: about 0.2–0.3 s for a project of 2,600 packages. The list filter each number opens is in `resources/js/lib/packageFilters.ts`.
 
@@ -173,21 +174,25 @@ The rules live in `app/Numbering/PackageNumberFormat.php`. The numbering page sh
 
 The bell at the top of every page shows how many unread notifications a person has and opens the **Notifications** page, newest first. Opening a notification goes to its package and marks it as read; **Mark as read** and **Mark all as read** do the same without leaving the page. Notifications are shown only in the app, not sent by email.
 
-| Notification       | Who gets it                                                                                                      |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| You were assigned  | The person who becomes a package's owner or responsible buyer, unless they made the change themselves            |
-| Date coming up     | The package's owner and buyer, when a milestone's expected date is within their own notification period          |
-| Date overdue       | The package's owner and buyer, the day after a milestone's expected date has passed without an actual date       |
-| Risk level changed | The project's managers and the package owner, when the package's level changes either way, unless they caused it |
+| Notification         | Who gets it                                                                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| You were assigned    | The person who becomes a package's owner or responsible buyer, unless they made the change themselves            |
+| Date coming up       | The package's owner and buyer, when a milestone's due date is within their own notification period               |
+| Date overdue         | The package's owner and buyer, the day after a milestone's due date has passed without an actual date            |
+| Risk level changed   | The project's managers and the package owner, when the package's level changes either way, unless they caused it |
+| Risk changes summary | Instead of the above, when one check would send a person more than 10 of them                                    |
 
 - Each person sets on **Settings → Notifications** how many days ahead they want to hear about their packages' coming dates: 0 to 90, 7 at first, and 0 turns these reminders off. Overdue dates are still reported.
 - **Risk changes** are noticed by a background check of the whole project, which runs right after every save that can change a package's risk (a package, its dates or risk flag, the risk warnings, the milestone list, a member's role, deactivating someone) and once a day for what time changes. The app remembers the level people were last told about (`packages.notified_risk_level`). The first check of a package, for example a new one, only stores its level, so nobody gets a flood of notifications.
-- **Date reminders** are sent by the daily check only, at 04:00 UTC (early morning in Finland), so nobody is reminded of a date they have just typed. "Today" is the UTC date. Closed and cancelled packages, milestones with an actual date and milestones without a date get none. Each reminder is sent once per person, package, milestone, kind and expected date (`sent_reminders`); when the expected date moves, the new date gets its own reminder. Dates that are already overdue when a package is first checked are recorded as reminded without telling anyone: the red risk badge already shows them.
+- **Many changes at once:** when one check would send a person more than 10 risk-change notifications, they get one summary instead: how many packages in the project changed level, and how many became red, amber and not at risk. Opening it goes to the project's package list. Exactly 10 still arrive one by one.
+- **Who caused it:** a save of one package (adding it, its details, dates or risk flag) leaves the person who saved out of the notifications for that package and the packages above and below it. Another package's change found by the same check, such as a date that passed overnight, is still told to them. A save that changes the whole project (risk warnings, the milestone list, a member's role, deactivating or reactivating someone) leaves them out of all of it. The daily check leaves nobody out.
+- When overdue started counting from the due date, the release cleared `notified_risk_level`, so the first check after it only stored the new levels and recorded overdue dates as reminded without telling anyone. Coming dates people had already been reminded of were recorded again under their due dates, so only a coming date nobody had heard about arrives. To release such a change safely: stop the `queue` and `scheduler` containers, migrate, then start them, so no worker still running the old code makes that first check.
+- **Date reminders** are sent by the daily check only, at 04:00 UTC (early morning in Finland), so nobody is reminded of a date they have just typed. "Today" is the UTC date. Finished packages (closed or cancelled, or below one), milestones with an actual date and milestones without a due date get none. Each reminder is sent once per person, package, milestone, kind and due date (`sent_reminders`); when the due date moves, the new date gets its own reminder. Dates that are already overdue when a package is first checked are recorded as reminded without telling anyone: the red risk badge already shows them.
 - The daily check is `sail artisan packages:check-risks`, run by the `scheduler` container. It queues one job per project (`App\Jobs\CheckProjectRisks`), which takes the same number of queries however many packages the project has.
 - Only active people get notifications, and only about projects they can see. Someone who leaves a project no longer sees its notifications, and they don't count in the bell; admins see all of theirs.
 - Notifications are private: nobody else, not even an admin, can open or mark someone's notifications.
 - They are sent in the background by the `queue` container.
-- For developers: each kind is a class extending `app/Notifications/PackageNotification.php`, which describes how every notification is stored, plus one message line in `resources/js/components/notifications/notificationMessages.ts`.
+- For developers: each kind is a class extending `app/Notifications/PackageNotification.php` (about one package) or `ProjectNotification.php` (about the whole project), which describe how every notification is stored, plus one message line in `resources/js/components/notifications/notificationMessages.ts`.
 
 ## Languages
 

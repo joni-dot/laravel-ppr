@@ -43,43 +43,52 @@ class RiskCheckTriggersTest extends TestCase
         $this->package = Package::factory()->for($this->project)->create();
     }
 
-    public function test_adding_a_package_queues_a_check()
+    public function test_adding_a_package_queues_a_check_of_what_it_changed()
     {
-        $this->assertQueuesCheck(fn () => $this->post(route('projects.packages.store', $this->project), ['title' => 'Pump']));
+        $check = $this->assertQueuesCheck(fn () => $this->post(route('projects.packages.store', $this->project), ['title' => 'Pump']));
+
+        $this->assertSame([Package::query()->latest('id')->value('id')], $check->savedPackageIds);
     }
 
-    public function test_saving_a_package_queues_a_check()
+    public function test_saving_a_package_queues_a_check_of_what_it_changed()
     {
-        $this->assertQueuesCheck(fn () => $this->put(route('projects.packages.update', [$this->project, $this->package]), ['title' => 'Pump', 'status' => 'ordered']));
+        $check = $this->assertQueuesCheck(fn () => $this->put(route('projects.packages.update', [$this->project, $this->package]), ['title' => 'Pump', 'status' => 'ordered']));
+
+        $this->assertSame([$this->package->id], $check->savedPackageIds);
     }
 
-    public function test_saving_a_packages_dates_queues_a_check()
+    public function test_saving_a_packages_dates_queues_a_check_of_what_it_changed()
     {
-        $this->assertQueuesCheck(fn () => $this->put(route('projects.packages.schedule.update', [$this->project, $this->package]), [
+        $check = $this->assertQueuesCheck(fn () => $this->put(route('projects.packages.schedule.update', [$this->project, $this->package]), [
             'milestones' => [['id' => $this->milestone('Order placed')->id, 'planned_date' => '2027-01-10', 'forecast_date' => null, 'actual_date' => null, 'lead_days' => null]],
         ]));
+
+        $this->assertSame([$this->package->id], $check->savedPackageIds);
     }
 
-    public function test_flagging_and_clearing_the_risk_flag_queue_a_check()
+    public function test_flagging_and_clearing_the_risk_flag_queue_a_check_of_what_it_changed()
     {
-        $this->assertQueuesCheck(fn () => $this->post(route('projects.packages.risk-flag.store', [$this->project, $this->package]), ['reason' => 'Supplier went bankrupt']));
-        $this->assertQueuesCheck(fn () => $this->delete(route('projects.packages.risk-flag.destroy', [$this->project, $this->package])));
+        $flagged = $this->assertQueuesCheck(fn () => $this->post(route('projects.packages.risk-flag.store', [$this->project, $this->package]), ['reason' => 'Supplier went bankrupt']));
+        $cleared = $this->assertQueuesCheck(fn () => $this->delete(route('projects.packages.risk-flag.destroy', [$this->project, $this->package])));
+
+        $this->assertSame([$this->package->id], $flagged->savedPackageIds);
+        $this->assertSame([$this->package->id], $cleared->savedPackageIds);
     }
 
     public function test_changing_the_risk_warnings_queues_a_check_but_renaming_the_project_does_not()
     {
         $project = ['name' => $this->project->name, 'code' => $this->project->code, 'risk_amber_days' => 14, 'risk_red_days' => 0];
 
-        $this->assertQueuesCheck(fn () => $this->put(route('projects.update', $this->project), [...$project, 'risk_amber_days' => 30]));
+        $this->assertNull($this->assertQueuesCheck(fn () => $this->put(route('projects.update', $this->project), [...$project, 'risk_amber_days' => 30]))->savedPackageIds);
         $this->assertQueuesNoCheck(fn () => $this->put(route('projects.update', $this->project), [...$project, 'name' => 'Renamed', 'risk_amber_days' => 30]));
     }
 
-    public function test_changing_the_milestones_queues_a_check()
+    public function test_changing_the_milestones_queues_a_check_of_the_whole_project()
     {
-        $this->assertQueuesCheck(fn () => $this->post(route('projects.milestones.store', $this->project), ['name' => 'Tested']));
-        $this->assertQueuesCheck(fn () => $this->patch(route('projects.milestones.move', [$this->project, $this->milestone('Order placed')]), ['direction' => 'up']));
-        $this->assertQueuesCheck(fn () => $this->put(route('projects.milestones.update', [$this->project, $this->milestone('Delivered from supplier')]), ['is_need_date' => true]));
-        $this->assertQueuesCheck(fn () => $this->delete(route('projects.milestones.destroy', [$this->project, $this->milestone('Offers received')])));
+        $this->assertNull($this->assertQueuesCheck(fn () => $this->post(route('projects.milestones.store', $this->project), ['name' => 'Tested']))->savedPackageIds);
+        $this->assertNull($this->assertQueuesCheck(fn () => $this->patch(route('projects.milestones.move', [$this->project, $this->milestone('Order placed')]), ['direction' => 'up']))->savedPackageIds);
+        $this->assertNull($this->assertQueuesCheck(fn () => $this->put(route('projects.milestones.update', [$this->project, $this->milestone('Delivered from supplier')]), ['is_need_date' => true]))->savedPackageIds);
+        $this->assertNull($this->assertQueuesCheck(fn () => $this->delete(route('projects.milestones.destroy', [$this->project, $this->milestone('Offers received')])))->savedPackageIds);
     }
 
     public function test_renaming_a_milestone_queues_no_check()
@@ -87,12 +96,12 @@ class RiskCheckTriggersTest extends TestCase
         $this->assertQueuesNoCheck(fn () => $this->put(route('projects.milestones.update', [$this->project, $this->milestone('Order placed')]), ['name' => 'Order sent']));
     }
 
-    public function test_changing_a_members_role_or_removing_them_queues_a_check()
+    public function test_changing_a_members_role_or_removing_them_queues_a_check_of_the_whole_project()
     {
         $member = $this->addMember(User::factory()->create(), ProjectRole::Buyer);
 
-        $this->assertQueuesCheck(fn () => $this->patch(route('projects.members.update', [$this->project, $member]), ['role' => 'viewer']));
-        $this->assertQueuesCheck(fn () => $this->delete(route('projects.members.destroy', [$this->project, $member])));
+        $this->assertNull($this->assertQueuesCheck(fn () => $this->patch(route('projects.members.update', [$this->project, $member]), ['role' => 'viewer']))->savedPackageIds);
+        $this->assertNull($this->assertQueuesCheck(fn () => $this->delete(route('projects.members.destroy', [$this->project, $member])))->savedPackageIds);
     }
 
     public function test_deactivating_or_reactivating_someone_checks_each_of_their_projects()
@@ -111,7 +120,7 @@ class RiskCheckTriggersTest extends TestCase
                 [$this->project->id, $otherProject->id],
                 Queue::pushed(CheckProjectRisks::class)->map(fn (CheckProjectRisks $job) => $job->projectId)->all(),
             );
-            Queue::assertPushed(CheckProjectRisks::class, fn (CheckProjectRisks $job) => $job->changedById === $admin->id);
+            Queue::assertPushed(CheckProjectRisks::class, fn (CheckProjectRisks $job) => $job->changedById === $admin->id && $job->savedPackageIds === null);
         }
     }
 
@@ -125,7 +134,7 @@ class RiskCheckTriggersTest extends TestCase
             [$this->project->id, $otherProject->id],
             Queue::pushed(CheckProjectRisks::class)->map(fn (CheckProjectRisks $job) => $job->projectId)->all(),
         );
-        Queue::assertPushed(CheckProjectRisks::class, fn (CheckProjectRisks $job) => $job->sendDateReminders && $job->changedById === null);
+        Queue::assertPushed(CheckProjectRisks::class, fn (CheckProjectRisks $job) => $job->sendDateReminders && $job->changedById === null && $job->savedPackageIds === null);
     }
 
     public function test_the_daily_command_runs_early_every_morning_in_finland()
@@ -143,7 +152,7 @@ class RiskCheckTriggersTest extends TestCase
     /**
      * @param  callable(): TestResponse  $request
      */
-    private function assertQueuesCheck(callable $request): void
+    private function assertQueuesCheck(callable $request): CheckProjectRisks
     {
         Queue::fake();
         $this->actingAs($this->manager);
@@ -154,6 +163,8 @@ class RiskCheckTriggersTest extends TestCase
         Queue::assertPushed(CheckProjectRisks::class, fn (CheckProjectRisks $job) => $job->projectId === $this->project->id
             && $job->changedById === $this->manager->id
             && ! $job->sendDateReminders);
+
+        return Queue::pushed(CheckProjectRisks::class)->sole();
     }
 
     /**

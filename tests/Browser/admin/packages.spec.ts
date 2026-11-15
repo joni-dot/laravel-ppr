@@ -242,3 +242,92 @@ test('adding a package keeps the filters in the address', async ({ page }) => {
     await expect(page.getByLabel('Search packages')).toHaveValue('trolley');
     await expect(page.getByText(/^1 of \d+ packages match$/)).toBeVisible();
 });
+
+test('a title typed while the previous package is still saving is kept', async ({
+    page,
+}) => {
+    await page.goto(`/projects/${id}/packages`);
+
+    // Hold the save until the next title is typed, so the two always overlap.
+    let letSaveThrough = () => {};
+    const saveHeld = new Promise<void>((resolve) => {
+        letSaveThrough = resolve;
+    });
+    await page.route(`**/projects/${id}/packages`, async (route) => {
+        if (route.request().method() === 'POST') {
+            await saveHeld;
+        }
+
+        await route.fallback();
+    });
+
+    const title = page.getByLabel('Title of the new package');
+    await title.fill('Junction box');
+    await page
+        .getByRole('combobox', { name: 'Category' })
+        .first()
+        .selectOption({ label: 'ELE – Electrical' });
+    await title.press('Enter');
+    const addButton = page.getByRole('button', { name: 'Add package' });
+    await expect(addButton).toBeDisabled();
+
+    await title.fill('Junction box lid');
+    letSaveThrough();
+
+    await expect(
+        page.getByRole('link', { name: 'Junction box', exact: true }),
+    ).toBeVisible();
+    await expect(addButton).toBeEnabled();
+    await expect(title).toHaveValue('Junction box lid');
+    await expect(title).toBeFocused();
+
+    // Once nothing else is typed, the title that was sent is cleared as before.
+    await title.press('Enter');
+    await expect(
+        page.getByRole('link', { name: 'Junction box lid', exact: true }),
+    ).toBeVisible();
+    await expect(title).toHaveValue('');
+    await expect(title).toBeFocused();
+});
+
+test('the same title typed again while it is still saving is kept', async ({
+    page,
+}) => {
+    await page.goto(`/projects/${id}/packages`);
+
+    let letSaveThrough = () => {};
+    const saveHeld = new Promise<void>((resolve) => {
+        letSaveThrough = resolve;
+    });
+    await page.route(`**/projects/${id}/packages`, async (route) => {
+        if (route.request().method() === 'POST') {
+            await saveHeld;
+        }
+
+        await route.fallback();
+    });
+
+    const title = page.getByLabel('Title of the new package');
+    await title.fill('Cable gland');
+    await page
+        .getByRole('combobox', { name: 'Category' })
+        .first()
+        .selectOption({ label: 'ELE – Electrical' });
+    await title.press('Enter');
+    await expect(
+        page.getByRole('button', { name: 'Add package' }),
+    ).toBeDisabled();
+
+    // A second package with the same title, typed again from scratch.
+    await title.fill('');
+    await title.fill('Cable gland');
+    letSaveThrough();
+
+    await expect(
+        page.getByRole('link', { name: 'Cable gland', exact: true }),
+    ).toBeVisible();
+    await expect(
+        page.getByRole('button', { name: 'Add package' }),
+    ).toBeEnabled();
+    await expect(title).toHaveValue('Cable gland');
+});

@@ -21,7 +21,7 @@ class PackageRiskFlagController extends Controller
     public function store(FlagPackageRiskRequest $request, Project $project, Package $package, FlagPackageRisk $flagPackageRisk): RedirectResponse
     {
         $flagPackageRisk->handle($package, $request->user(), $request->validated('reason'));
-        CheckProjectRisks::dispatch($project->id, $request->user()->id);
+        CheckProjectRisks::dispatch($project->id, $request->user()->id, savedPackageIds: [$package->id]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Package flagged as high risk.')]);
 
@@ -31,7 +31,7 @@ class PackageRiskFlagController extends Controller
     public function destroy(Request $request, Project $project, Package $package, ClearPackageRiskFlag $clearPackageRiskFlag): RedirectResponse
     {
         $clearPackageRiskFlag->handle($package);
-        CheckProjectRisks::dispatch($project->id, $request->user()->id);
+        CheckProjectRisks::dispatch($project->id, $request->user()->id, savedPackageIds: [$package->id]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Risk flag cleared.')]);
 

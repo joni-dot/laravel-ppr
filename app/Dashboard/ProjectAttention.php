@@ -24,7 +24,7 @@ use stdClass;
  */
 final readonly class ProjectAttention
 {
-    // "Due soon": a milestone not done yet is expected within this many days, today included.
+    // "Due soon": a milestone not done yet is due (forecast, else planned) within this many days, today included.
     public const int DUE_SOON_DAYS = 14;
 
     // The "milestones due per week" chart covers this week and the ones after it.
@@ -47,10 +47,9 @@ final readonly class ProjectAttention
     public static function for(Project $project): self
     {
         $rows = array_values(self::rows($project)->get()->all());
-        $schedules = ProjectSchedules::for($project, $rows);
-        $today = now('UTC')->toDateString();
+        $schedules = ProjectSchedules::for($project, $rows, now('UTC')->toDateString());
 
-        return new self($rows, $schedules, ProjectRisks::fromRows($project, $rows, $schedules, $today), $today);
+        return new self($rows, $schedules, ProjectRisks::fromRows($project, $rows, $schedules), $schedules->today);
     }
 
     /**
@@ -72,7 +71,7 @@ final readonly class ProjectAttention
 
         foreach ($this->rows as $row) {
             $risk = $this->risks[$row->id];
-            $tiles['open'] += (int) self::isOpen($row);
+            $tiles['open'] += (int) $this->isOpen($row);
             $tiles['red'] += (int) ($risk->level === RiskLevel::Red);
             $tiles['amber'] += (int) ($risk->level === RiskLevel::Amber);
             $tiles['overdue'] += (int) $risk->has(RiskReason::Overdue);
@@ -100,7 +99,7 @@ final readonly class ProjectAttention
     }
 
     /**
-     * Open packages per category and risk level. Closed and cancelled packages are left out: they are never
+     * Open packages per category and risk level. Finished packages are left out: they are never
      * at risk, and counting them as "fine" would hide how much of a category is in trouble.
      *
      * @return list<array{categoryId: int|null, red: int, amber: int, none: int}> by category id, packages without a category last
@@ -110,7 +109,7 @@ final readonly class ProjectAttention
         $byCategory = [];
 
         foreach ($this->rows as $row) {
-            if (! self::isOpen($row)) {
+            if (! $this->isOpen($row)) {
                 continue;
             }
 
@@ -125,8 +124,8 @@ final readonly class ProjectAttention
     }
 
     /**
-     * Milestones of open packages that haven't happened and are expected in each week (Monday to Sunday),
-     * from this week on. Overdue milestones are not counted: they are in the "overdue" number.
+     * Milestones of open packages that haven't happened and are due (forecast, else planned) in each week
+     * (Monday to Sunday), from this week on. Overdue milestones are not counted: they are in the "overdue" number.
      *
      * @return list<array{weekStart: string, count: int}>
      */
@@ -137,16 +136,18 @@ final readonly class ProjectAttention
         $counts = array_fill(0, self::CHART_WEEKS, 0);
 
         foreach ($this->rows as $row) {
-            if (! self::isOpen($row)) {
+            if (! $this->isOpen($row)) {
                 continue;
             }
 
             foreach ($this->schedules->of($row->id)->milestones() as $milestone) {
-                if ($milestone->isDone() || $milestone->expected === null) {
+                $due = $milestone->due();
+
+                if ($milestone->isDone() || $due === null) {
                     continue;
                 }
 
-                $day = Days::fromDate($milestone->expected);
+                $day = Days::fromDate($due);
                 $week = intdiv($day - $firstMonday, 7);
 
                 if ($day >= $today && $week < self::CHART_WEEKS) {
@@ -160,7 +161,7 @@ final readonly class ProjectAttention
 
     /**
      * What one person must act on: milestones of the open packages they own or buy that are overdue, or
-     * expected within their own notification period, by the same rule as their date reminders. Earliest first.
+     * due within their own notification period, by the same rule as their date reminders. Earliest first.
      *
      * @return list<array{packageId: int, number: string, title: string, milestoneName: string, date: string, daysLeft: int, kind: string, asOwner: bool, asBuyer: bool}>
      */
@@ -170,16 +171,18 @@ final readonly class ProjectAttention
         $actions = [];
 
         foreach ($this->rows as $row) {
-            if (! self::isOpen($row) || ($row->owner_id !== $userId && $row->buyer_id !== $userId)) {
+            if (! $this->isOpen($row) || ($row->owner_id !== $userId && $row->buyer_id !== $userId)) {
                 continue;
             }
 
             foreach ($this->schedules->of($row->id)->milestones() as $milestone) {
-                if ($milestone->isDone() || $milestone->expected === null) {
+                $due = $milestone->due();
+
+                if ($milestone->isDone() || $due === null) {
                     continue;
                 }
 
-                $daysLeft = Days::fromDate($milestone->expected) - $today;
+                $daysLeft = Days::fromDate($due) - $today;
                 $kind = DateReminderKind::forDaysLeft($daysLeft, $notificationDays);
 
                 if ($kind !== null) {
@@ -188,7 +191,7 @@ final readonly class ProjectAttention
                         'number' => $row->number,
                         'title' => $row->title,
                         'milestoneName' => $this->schedules->milestoneName($milestone->milestoneId),
-                        'date' => $milestone->expected,
+                        'date' => $due,
                         'daysLeft' => $daysLeft,
                         'kind' => $kind->value,
                         'asOwner' => $row->owner_id === $userId,
@@ -207,14 +210,14 @@ final readonly class ProjectAttention
     {
         $nextDue = $this->schedules->of($row->id)->nextDue($this->today);
 
-        return self::isOpen($row)
-            && $nextDue !== null
-            && Days::fromDate($nextDue->expected) - Days::fromDate($this->today) <= self::DUE_SOON_DAYS;
+        return $this->isOpen($row)
+            && $nextDue?->due() !== null
+            && Days::fromDate($nextDue->due()) - Days::fromDate($this->today) <= self::DUE_SOON_DAYS;
     }
 
-    private static function isOpen(stdClass $row): bool
+    private function isOpen(stdClass $row): bool
     {
-        return $row->status !== PackageStatus::Closed->value && $row->status !== PackageStatus::Cancelled->value;
+        return ! $this->schedules->isFinished($row->id);
     }
 
     private static function missesPeople(PackageRisk $risk): bool

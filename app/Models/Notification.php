@@ -10,14 +10,14 @@ use Illuminate\Support\Carbon;
 
 /**
  * A stored in-app notification. The layout of type, project_id and data is described in
- * App\Notifications\PackageNotification.
+ * App\Notifications\ProjectNotification.
  *
  * @property string $id
  * @property string $type
  * @property string $notifiable_type
  * @property int $notifiable_id
  * @property int $project_id
- * @property array{package_id: int, package_number: string, package_title: string, params: array<string, mixed>} $data
+ * @property array{package_id?: int, package_number?: string, package_title?: string, params: array<string, mixed>} $data
  * @property Carbon|null $read_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at

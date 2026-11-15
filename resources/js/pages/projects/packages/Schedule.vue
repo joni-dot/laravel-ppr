@@ -104,6 +104,14 @@ function save(): void {
                 "
             />
 
+            <p class="text-sm text-muted-foreground">
+                {{
+                    $t(
+                        'A milestone is overdue once its forecast date has passed, or its planned date when it has no forecast. To move the date it is due, change the forecast.',
+                    )
+                }}
+            </p>
+
             <p
                 v-if="hasLockedPlannedDates"
                 id="locked-planned-dates"

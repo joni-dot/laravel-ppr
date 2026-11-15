@@ -2,16 +2,14 @@
 
 namespace App\Risk;
 
-use App\Enums\PackageStatus;
-use App\Scheduling\PackageSchedule;
 use App\Scheduling\ScheduledMilestone;
 
 /**
  * One package's risk level and the reasons for it. This is the only place the risk rules live;
  * pages, lists and notifications show its results. Worked out when asked, never stored for display.
  *
- * - Closed and cancelled packages are never at risk.
- * - Red: flagged by hand; a milestone that hasn't happened was expected before today; or the float
+ * - Finished packages are never at risk: closed or cancelled ones, and everything below them.
+ * - Red: flagged by hand; a milestone that hasn't happened was due (forecast, else planned) before today; or the float
  *   (counting sub-packages) is below the project's red warning.
  * - Amber: the float is below the amber warning; the need date isn't planned, so the float can't be
  *   judged; or the package has no owner or buyer, or theirs is deactivated.
@@ -31,15 +29,15 @@ final readonly class PackageRisk
     ) {}
 
     /**
-     * @param  string  $today  "YYYY-MM-DD"; milestones expected before it are overdue
+     * @param  string  $today  "YYYY-MM-DD"; milestones due before it are overdue
      */
     public static function assess(PackageRiskFacts $facts, RiskThresholds $thresholds, string $today): self
     {
-        if ($facts->status === PackageStatus::Closed || $facts->status === PackageStatus::Cancelled) {
+        if ($facts->isFinished) {
             return new self(RiskLevel::None, []);
         }
 
-        $overdue = self::firstOverdueMilestone($facts->schedule, $today);
+        $overdue = $facts->schedule->firstOverdue($today);
         $lateness = $thresholds->levelForFloat($facts->floatWithSubPackages);
         $found = array_filter([
             [RiskReason::ManualFlag, $facts->isFlagged ? RiskLevel::Red : null],
@@ -58,20 +56,6 @@ final readonly class PackageRisk
     public function has(RiskReason $reason): bool
     {
         return in_array($reason, $this->reasons, true);
-    }
-
-    /**
-     * A milestone is overdue when it hasn't happened and its expected date is already past.
-     */
-    private static function firstOverdueMilestone(PackageSchedule $schedule, string $today): ?ScheduledMilestone
-    {
-        foreach ($schedule->milestones() as $milestone) {
-            if (! $milestone->isDone() && $milestone->expected !== null && $milestone->expected < $today) {
-                return $milestone;
-            }
-        }
-
-        return null;
     }
 
     /**

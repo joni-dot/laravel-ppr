@@ -5,7 +5,7 @@ namespace App\Notifications;
 use App\Models\Package;
 
 /**
- * "Order placed is expected in 3 days." Sent once per milestone and expected date, when the date comes
+ * "Order placed is due in 3 days." Sent once per milestone and due date (the forecast, else the planned date), when it comes
  * within the person's own notification period.
  */
 class DateComingUp extends PackageNotification

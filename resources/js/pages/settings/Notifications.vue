@@ -53,7 +53,7 @@ defineProps<{
                 :label="$t('Remind me this many days before a date')"
                 :hint="
                     $t(
-                        'With 7, you are reminded a week before a milestone of your package is expected. 0 turns these reminders off; you are still told when a date has passed.',
+                        'With 7, you are reminded a week before a milestone of your package is due (its forecast, else its planned date). 0 turns these reminders off; you are still told when a date has passed.',
                     )
                 "
                 :error="errors.notification_days"

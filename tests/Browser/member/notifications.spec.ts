@@ -1,9 +1,11 @@
 import type { Browser } from '@playwright/test';
+import { asManager } from '../support/manager';
 import {
     manager,
     notifiedPackage,
     password,
     projects,
+    summaryPackages,
     users,
 } from '../support/test-data';
 import { expect, test } from '../support/test';
@@ -97,4 +99,45 @@ test('a person chooses how many days ahead they are reminded', async ({
 
     await page.reload();
     await expect(days).toHaveValue('14');
+});
+
+test('a package owner gets one summary when a change turns many of their packages amber', async ({
+    page,
+    browser,
+    baseURL,
+}) => {
+    await asManager(browser, baseURL, async (managerPage) => {
+        await managerPage.goto(`/projects/${id}/edit`);
+        await managerPage
+            .getByLabel('Amber below')
+            .fill(String(summaryPackages.daysToSpare + 1));
+        await managerPage.getByRole('button', { name: 'Save' }).click();
+        await expect(managerPage.getByText('Project saved.')).toBeVisible();
+    });
+
+    // The check runs in the background after the save; here the queue runs it straight away.
+    await page.goto('/notifications');
+    const message = `${summaryPackages.count} packages in ${projects.notifications.name} changed risk level: 0 now red, ${summaryPackages.count} now amber, 0 no longer at risk.`;
+    const summary = page
+        .getByTestId('unread-notification')
+        .filter({ hasText: message });
+    await expect(summary).toHaveCount(1);
+    await expect(
+        page.getByTestId('unread-notification').filter({
+            hasText: 'Summary pump',
+        }),
+    ).toHaveCount(0);
+
+    await summary.getByRole('link', { name: message }).click();
+    await expect(page).toHaveURL(new RegExp(`/projects/${id}/packages$`));
+    await expect(
+        page.getByRole('link', { name: 'Summary pump 11' }),
+    ).toBeVisible();
+
+    await page.goto('/notifications');
+    await expect(
+        page.getByTestId('read-notification').getByRole('link', {
+            name: message,
+        }),
+    ).toBeVisible();
 });

@@ -72,9 +72,63 @@ class PackageRiskPagesTest extends TestCase
             ->get(route('projects.packages.show', [$this->project, $package]))
             ->assertInertia(fn ($page) => $page
                 ->where('risk.level', 'none')
+                ->where('risk.isFinished', true)
+                ->where('risk.isItselfFinished', true)
+                ->where('risk.belowAFinishedPackage', false)
                 ->where('risk.reasons', [])
                 // Still shown, so the people who may edit it can clear it.
                 ->where('risk.flag.reason', 'Old worry'));
+    }
+
+    public function test_a_sub_package_below_a_cancelled_package_counts_as_finished_on_the_list_and_its_page()
+    {
+        $frame = $this->addPackage('Frame');
+        $bolts = $this->addPackage('Bolts', $frame, withPeople: false);
+        $this->fillIn($bolts, 'Order placed', ['planned_date' => '2027-01-15']);
+        $frame->forceFill(['status' => PackageStatus::Cancelled])->save();
+
+        $this->actingAs($this->manager)
+            ->getPackageTree($this->project)
+            ->assertInertia(fn ($page) => $page
+                ->where('packages.1.title', 'Bolts')
+                ->where('packages.1.status', 'draft')
+                ->where('packages.1.isFinished', true)
+                ->where('packages.1.risk', null));
+
+        $this->actingAs($this->manager)
+            ->get(route('projects.packages.show', [$this->project, $bolts]))
+            ->assertInertia(fn ($page) => $page
+                ->where('risk.level', 'none')
+                ->where('risk.isFinished', true)
+                ->where('risk.isItselfFinished', false)
+                ->where('risk.belowAFinishedPackage', true)
+                ->where('risk.reasons', [])
+                ->where('risk.overdueMilestone', null)
+                // Its dates aren't reminded of, so the timeline doesn't call the missed one overdue.
+                ->where('schedule.milestones.3.name', 'Order placed')
+                ->where('schedule.milestones.3.missedDueDate', null));
+    }
+
+    public function test_the_timeline_gets_the_forecast_or_planned_date_each_overdue_milestone_missed()
+    {
+        $pump = $this->addPackage('Pump');
+        $this->fillIn($pump, 'Request for quotation sent', ['planned_date' => '2027-01-10']);
+        $this->fillIn($pump, 'Order placed', ['planned_date' => '2027-02-01', 'forecast_date' => '2027-03-01']);
+        $this->fillIn($pump, 'Delivered from supplier', ['planned_date' => '2027-01-20', 'forecast_date' => '2027-04-01']);
+        $this->fillIn($pump, 'Required on site', ['planned_date' => '2027-06-01']);
+
+        $this->actingAs($this->manager)
+            ->get(route('projects.packages.show', [$this->project, $pump]))
+            ->assertInertia(fn ($page) => $page
+                ->where('schedule.today', '2027-03-10')
+                ->where('schedule.milestones.1.missedDueDate', '2027-01-10')
+                // The forecast is the date it was due, and missing it moves the expected date to today.
+                ->where('schedule.milestones.3.missedDueDate', '2027-03-01')
+                ->where('schedule.milestones.3.expected', '2027-03-10')
+                // Its planned date passed, but its forecast hasn't yet.
+                ->where('schedule.milestones.4.missedDueDate', null)
+                ->where('schedule.milestones.5.missedDueDate', null)
+                ->where('risk.overdueMilestone', ['name' => 'Request for quotation sent', 'due' => '2027-01-10']));
     }
 
     public function test_the_package_page_explains_each_reason()
@@ -95,11 +149,14 @@ class PackageRiskPagesTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('risk', [
                     'level' => 'red',
+                    'isFinished' => false,
+                    'isItselfFinished' => false,
+                    'belowAFinishedPackage' => false,
                     'reasons' => ['manual_flag', 'overdue', 'late'],
                     // Counting the core, which is expected 12 days after the transformer's need date.
                     'floatDays' => -12,
                     'thresholds' => ['amberDays' => 14, 'redDays' => 0],
-                    'overdueMilestone' => ['name' => 'Order placed', 'expected' => '2027-03-03'],
+                    'overdueMilestone' => ['name' => 'Order placed', 'due' => '2027-03-03'],
                     'flag' => [
                         'reason' => 'Supplier went bankrupt',
                         'flaggedByName' => 'Mia Manager',

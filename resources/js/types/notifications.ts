@@ -5,6 +5,13 @@ import type { RiskLevel, RiskReason } from './packages';
  * To add a kind, add it here and give it a message in components/notifications/notificationMessages.ts.
  */
 export type NotificationKind =
+    | PackageNotificationKind
+    | ProjectNotificationKind;
+
+/**
+ * The kinds about one package (PackageNotification): they carry the package's number and title.
+ */
+export type PackageNotificationKind =
     | {
           kind: 'package_assigned';
           params: { role: 'owner' | 'buyer' };
@@ -31,11 +38,32 @@ export type NotificationKind =
           };
       };
 
-export type InAppNotification = NotificationKind & {
+/**
+ * The kinds about a whole project (ProjectNotification): opening one goes to the project's package list.
+ */
+export type ProjectNotificationKind = {
+    kind: 'risk_changes_summary';
+    // How many packages one check changed, and how many of them became each level.
+    params: { changed: number; red: number; amber: number; none: number };
+};
+
+type InAppNotificationBase = {
     id: string;
     projectName: string;
-    packageNumber: string;
-    packageTitle: string;
     isRead: boolean;
     createdAt: string;
 };
+
+export type PackageInAppNotification = InAppNotificationBase &
+    PackageNotificationKind & {
+        packageNumber: string;
+        packageTitle: string;
+    };
+
+export type InAppNotification =
+    | PackageInAppNotification
+    | (InAppNotificationBase &
+          ProjectNotificationKind & {
+              packageNumber: null;
+              packageTitle: null;
+          });

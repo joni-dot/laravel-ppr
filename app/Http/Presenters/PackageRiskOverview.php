@@ -18,29 +18,38 @@ final class PackageRiskOverview
     /**
      * @return array{
      *     level: string,
+     *     isFinished: bool,
+     *     isItselfFinished: bool,
+     *     belowAFinishedPackage: bool,
      *     reasons: list<string>,
      *     floatDays: int|null,
      *     thresholds: array{amberDays: int, redDays: int},
-     *     overdueMilestone: array{name: string, expected: string|null}|null,
+     *     overdueMilestone: array{name: string, due: string|null}|null,
      *     flag: array{reason: string, flaggedByName: string|null, flaggedAt: string|null}|null,
      * }
      */
-    public static function for(Project $project, Package $package, string $today): array
+    public static function for(Project $project, Package $package, string $today, bool $belowAFinishedPackage): array
     {
         // Its sub-packages too, because its float counts them.
         $rows = $package->limitToItsTree(ProjectRisks::packageRows($project))->get();
-        $schedules = ProjectSchedules::for($project, $rows, allOfTheProject: false);
-        $risk = ProjectRisks::fromRows($project, $rows, $schedules, $today)[$package->id];
+        $schedules = ProjectSchedules::for($project, $rows, $today, allOfTheProject: false, belowAFinishedPackage: $belowAFinishedPackage);
+        $risk = ProjectRisks::fromRows($project, $rows, $schedules)[$package->id];
         $thresholds = RiskThresholds::of($project);
 
         return [
             'level' => $risk->level->value,
+            // Closed or cancelled, itself or a package above it: never at risk.
+            'isFinished' => $schedules->isFinished($package->id),
+            // Which of the two reasons the page gives for it.
+            'isItselfFinished' => $package->status->isFinished(),
+            'belowAFinishedPackage' => $belowAFinishedPackage,
             'reasons' => array_map(fn (RiskReason $reason) => $reason->value, $risk->reasons),
             'floatDays' => $schedules->floatWithSubPackages($package->id),
             'thresholds' => ['amberDays' => $thresholds->amberDays, 'redDays' => $thresholds->redDays],
             'overdueMilestone' => $risk->overdueMilestone === null ? null : [
                 'name' => $schedules->milestoneName($risk->overdueMilestone->milestoneId),
-                'expected' => $risk->overdueMilestone->expected,
+                // The date it was due and missed; its expected date is today by now.
+                'due' => $risk->overdueMilestone->due(),
             ],
             'flag' => self::flag($package),
         ];

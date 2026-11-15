@@ -4,13 +4,14 @@ namespace App\Scheduling;
 
 /**
  * A package isn't finished until its sub-packages are, so a parent shows the latest date found
- * anywhere below it. Cancelled packages, and everything under them, are left out.
+ * anywhere below it. Finished (closed or cancelled) packages, and everything under them, are left out:
+ * they are not waited for.
  */
 final class SubPackageRollUp
 {
     /**
-     * @param  list<array{id: int, parentId: int|null, isCancelled: bool, dates: array<int|string, string|null>}>  $rows
-     *                                                                                                                    in tree order: every package before its sub-packages
+     * @param  list<array{id: int, parentId: int|null, isFinished: bool, dates: array<int|string, string|null>}>  $rows
+     *                                                                                                                   in tree order: every package before its sub-packages
      * @return array<int, array<int|string, string>> per package id, the latest date for each key among the package and the packages under it
      */
     public static function latest(array $rows): array
@@ -22,7 +23,7 @@ final class SubPackageRollUp
             $dates = self::later(array_filter($row['dates'], fn (?string $date) => $date !== null), $fromBelow[$row['id']] ?? []);
             $rolledUp[$row['id']] = $dates;
 
-            if ($row['parentId'] !== null && ! $row['isCancelled']) {
+            if ($row['parentId'] !== null && ! $row['isFinished']) {
                 $fromBelow[$row['parentId']] = self::later($fromBelow[$row['parentId']] ?? [], $dates);
             }
         }

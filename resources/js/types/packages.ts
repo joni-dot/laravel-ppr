@@ -35,6 +35,8 @@ export type PackageRow = {
     nextMilestoneDate: string | null;
     // The first date from today on of a milestone not done yet, for the "due soon" filter.
     dueDate: string | null;
+    // Closed or cancelled, itself or a package above it (the server decides).
+    isFinished: boolean;
     // The planned date of the project's need-date milestone.
     needDate: string | null;
     // The latest expected need date of this package and its sub-packages.
@@ -73,11 +75,18 @@ export type PackageListRisk = {
  */
 export type PackageRiskOverview = {
     level: RiskLevel;
+    // Closed or cancelled, itself or a package above it: never at risk.
+    isFinished: boolean;
+    // Its own status is closed or cancelled.
+    isItselfFinished: boolean;
+    // A package above it is closed or cancelled, whatever its own status.
+    belowAFinishedPackage: boolean;
     reasons: RiskReason[];
     // Counting sub-packages, as the package list shows it.
     floatDays: number | null;
     thresholds: { amberDays: number; redDays: number };
-    overdueMilestone: { name: string; expected: string | null } | null;
+    // due: the forecast, else planned, date it missed.
+    overdueMilestone: { name: string; due: string | null } | null;
     // Kept even when the package is closed, so it can still be cleared.
     flag: {
         reason: string;

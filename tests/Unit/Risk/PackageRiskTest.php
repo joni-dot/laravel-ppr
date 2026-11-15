@@ -41,19 +41,10 @@ class PackageRiskTest extends TestCase
         $this->assertNull($risk->overdueMilestone);
     }
 
-    /**
-     * @return array<string, array{PackageStatus}>
-     */
-    public static function finishedStatuses(): array
-    {
-        return ['closed' => [PackageStatus::Closed], 'cancelled' => [PackageStatus::Cancelled]];
-    }
-
-    #[DataProvider('finishedStatuses')]
-    public function test_closed_and_cancelled_packages_are_never_at_risk(PackageStatus $status)
+    public function test_finished_packages_are_never_at_risk()
     {
         $risk = $this->assess(
-            status: $status,
+            isFinished: true,
             entries: [1 => new MilestoneEntry(planned: '2027-01-01')],
             float: -30,
             isFlagged: true,
@@ -108,7 +99,14 @@ class PackageRiskTest extends TestCase
         $this->assertSame(RiskLevel::Red, $this->assess(float: -6)->level);
     }
 
-    public function test_a_milestone_that_has_not_happened_and_was_expected_before_today_is_overdue()
+    public function test_only_closed_and_cancelled_are_finished_statuses()
+    {
+        $finished = array_filter(PackageStatus::cases(), fn (PackageStatus $status) => $status->isFinished());
+
+        $this->assertSame([PackageStatus::Closed, PackageStatus::Cancelled], array_values($finished));
+    }
+
+    public function test_a_milestone_that_has_not_happened_and_was_due_before_today_is_overdue()
     {
         $risk = $this->assess(entries: [
             1 => new MilestoneEntry(planned: '2027-03-09'),
@@ -120,7 +118,36 @@ class PackageRiskTest extends TestCase
         $this->assertSame([RiskReason::Overdue], $risk->reasons);
         // The first one in the milestone list, so the page names the next thing to act on.
         $this->assertSame(1, $risk->overdueMilestone?->milestoneId);
-        $this->assertSame('2027-03-09', $risk->overdueMilestone->expected);
+        $this->assertSame('2027-03-09', $risk->overdueMilestone->due());
+    }
+
+    public function test_overdue_counts_from_the_forecast_else_the_planned_date_not_the_estimate()
+    {
+        // Ahead of plan: lead times say it could have happened already, but it's planned for later.
+        $aheadOfPlan = $this->assess(entries: [
+            1 => new MilestoneEntry(actual: '2027-01-01'),
+            2 => new MilestoneEntry(planned: '2027-04-01', leadDays: 30),
+            3 => new MilestoneEntry(planned: '2027-06-01'),
+        ]);
+        // Only an estimate from lead times, which nobody committed to.
+        $estimateOnly = $this->assess(entries: [
+            1 => new MilestoneEntry(actual: '2027-01-01'),
+            2 => new MilestoneEntry(leadDays: 30),
+            3 => new MilestoneEntry(planned: '2027-06-01'),
+        ]);
+
+        $this->assertNotContains(RiskReason::Overdue, $aheadOfPlan->reasons);
+        $this->assertNotContains(RiskReason::Overdue, $estimateOnly->reasons);
+    }
+
+    public function test_a_forecast_overrules_the_planned_date_for_overdue()
+    {
+        $risk = $this->assess(entries: [
+            1 => new MilestoneEntry(planned: '2027-04-01', forecast: '2027-03-05'),
+            3 => new MilestoneEntry(planned: '2027-06-01'),
+        ]);
+
+        $this->assertSame([RiskReason::Overdue], $risk->reasons);
     }
 
     public function test_a_milestone_expected_today_is_not_overdue_yet()
@@ -223,15 +250,15 @@ class PackageRiskTest extends TestCase
      * @param  array<int, MilestoneEntry>|null  $entries
      */
     private function assess(
-        PackageStatus $status = PackageStatus::Ordered,
+        bool $isFinished = false,
         ?array $entries = null,
         ?int $float = 60,
         bool $isFlagged = false,
         AssignedPerson $owner = AssignedPerson::Active,
         AssignedPerson $buyer = AssignedPerson::Active,
     ): PackageRisk {
-        $schedule = PackageSchedule::calculate($this->list, $entries ?? [3 => new MilestoneEntry(planned: '2027-06-01')]);
+        $schedule = PackageSchedule::calculate($this->list, $entries ?? [3 => new MilestoneEntry(planned: '2027-06-01')], self::TODAY);
 
-        return PackageRisk::assess(new PackageRiskFacts($status, $schedule, $float, $isFlagged, $owner, $buyer), $this->thresholds, self::TODAY);
+        return PackageRisk::assess(new PackageRiskFacts($isFinished, $schedule, $float, $isFlagged, $owner, $buyer), $this->thresholds, self::TODAY);
     }
 }

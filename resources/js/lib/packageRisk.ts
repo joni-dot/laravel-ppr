@@ -9,6 +9,7 @@ import type { RiskLevel, RiskReason } from '@/types';
 export type RiskDetails = {
     floatDays?: number | null;
     overdueMilestone?: string;
+    // The forecast, else planned, date the overdue milestone missed.
     overdueDate?: string | null;
     flagReason?: string;
 };
@@ -61,7 +62,7 @@ function overdueInWords(details: RiskDetails): string {
     }
 
     return details.overdueDate
-        ? trans('Overdue: :milestone was expected on :date', {
+        ? trans('Overdue: :milestone was due on :date', {
               milestone: details.overdueMilestone,
               date: formatDate(details.overdueDate),
           })

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Risk;
 
+use App\Actions\Packages\CreatePackage;
 use App\Actions\Risk\NotifyRiskChanges;
 use App\Enums\ProjectRole;
 use App\Jobs\CheckProjectRisks;
@@ -102,6 +103,76 @@ class RiskChangeNotificationTest extends TestCase
         $this->assertSame([$this->owner->id], Notification::query()->pluck('notifiable_id')->all());
     }
 
+    public function test_the_person_who_saved_is_still_told_about_changes_their_save_did_not_cause()
+    {
+        $other = $this->addPackage();
+        $this->check();
+        // Turned red overnight, before anyone's save started a check.
+        $this->makeLate($other);
+
+        $this->saveLateDates($this->package, savedBy: $this->manager);
+
+        $this->assertSame([$other->id], $this->toldAbout($this->manager));
+        $this->assertEqualsCanonicalizing([$this->package->id, $other->id], $this->toldAbout($this->owner));
+    }
+
+    public function test_the_person_who_saved_a_sub_package_is_not_told_about_the_packages_above_it()
+    {
+        $child = $this->addPackage($this->package);
+        $grandchild = $this->addPackage($child);
+        $this->check();
+
+        $this->saveLateDates($grandchild, savedBy: $this->manager);
+
+        $this->assertSame([], $this->toldAbout($this->manager));
+        $this->assertEqualsCanonicalizing([$this->package->id, $child->id, $grandchild->id], $this->toldAbout($this->owner));
+    }
+
+    public function test_the_person_who_cancelled_a_package_is_not_told_about_the_packages_below_or_above_it()
+    {
+        $child = $this->addPackage($this->package);
+        $grandchild = $this->addPackage($child);
+        $other = $this->addPackage();
+        $this->makeLate($grandchild);
+        $this->check();
+        $this->makeLate($other);
+
+        $this->actingAs($this->manager)
+            ->put(route('projects.packages.update', [$this->project, $child]), ['title' => $child->title, 'status' => 'cancelled'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([$other->id], $this->toldAbout($this->manager));
+        $this->assertEqualsCanonicalizing([$this->package->id, $child->id, $grandchild->id, $other->id], $this->toldAbout($this->owner));
+    }
+
+    public function test_a_save_that_changes_the_whole_project_tells_the_saver_nothing()
+    {
+        $other = $this->addPackage();
+        $this->check();
+        $this->makeLate($other);
+
+        $this->actingAs($this->manager)->put(route('projects.update', $this->project), [
+            'name' => $this->project->name,
+            'code' => $this->project->code,
+            'risk_amber_days' => 30,
+            'risk_red_days' => 0,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame([], $this->toldAbout($this->manager));
+        $this->assertSame([$other->id], $this->toldAbout($this->owner));
+    }
+
+    public function test_the_daily_check_leaves_nobody_out()
+    {
+        $this->check();
+        $this->makeLate();
+
+        $this->check(daily: true);
+
+        $this->assertSame([$this->package->id], $this->toldAbout($this->manager));
+        $this->assertSame([$this->package->id], $this->toldAbout($this->owner));
+    }
+
     public function test_deactivated_people_and_former_members_are_not_told()
     {
         $otherManager = User::factory()->create();
@@ -137,7 +208,7 @@ class RiskChangeNotificationTest extends TestCase
         $this->check();
         $this->assertSame(2, Notification::query()->count());
 
-        app(NotifyRiskChanges::class)->handle($this->project, $rowsReadBeforeTheOtherCheck, ProjectSchedules::for($this->project, $rowsReadBeforeTheOtherCheck), null);
+        app(NotifyRiskChanges::class)->handle($this->project, $rowsReadBeforeTheOtherCheck, ProjectSchedules::for($this->project, $rowsReadBeforeTheOtherCheck, now('UTC')->toDateString()), null);
 
         $this->assertSame(2, Notification::query()->count());
     }
@@ -188,18 +259,43 @@ class RiskChangeNotificationTest extends TestCase
         $this->fillIn($package, 'Delivered from supplier', ['planned_date' => now()->addDays(3)->toDateString()]);
     }
 
-    private function addPackage(): Package
+    private function addPackage(?Package $parent = null): Package
     {
-        $package = Package::factory()->for($this->project)->create(['owner_id' => $this->owner->id, 'buyer_id' => $this->buyer->id, 'status' => 'ordered']);
+        $package = $parent === null
+            ? Package::factory()->for($this->project)->create()
+            : app(CreatePackage::class)->handle($this->project->fresh(), 'Sub-package', null, $parent);
+        $package->forceFill(['owner_id' => $this->owner->id, 'buyer_id' => $this->buyer->id, 'status' => 'ordered'])->save();
         $this->fillIn($package, 'Required on site', ['planned_date' => '2027-12-01', 'forecast_date' => '2027-06-01']);
 
         return $package;
     }
 
-    private function makeLate(): void
+    private function makeLate(?Package $package = null): void
     {
         $milestone = $this->project->milestones()->where('name', 'Required on site')->firstOrFail();
-        PackageMilestone::query()->whereBelongsTo($this->package)->whereBelongsTo($milestone)->update(['forecast_date' => '2027-12-20']);
+        PackageMilestone::query()->whereBelongsTo($package ?? $this->package)->whereBelongsTo($milestone)->update(['forecast_date' => '2027-12-20']);
+    }
+
+    private function saveLateDates(Package $package, User $savedBy): void
+    {
+        $milestone = $this->project->milestones()->where('name', 'Required on site')->firstOrFail();
+
+        $this->actingAs($savedBy)->put(route('projects.packages.schedule.update', [$this->project, $package]), [
+            'milestones' => [['id' => $milestone->id, 'planned_date' => '2027-12-01', 'forecast_date' => '2027-12-20', 'actual_date' => null, 'lead_days' => null]],
+        ])->assertSessionHasNoErrors();
+    }
+
+    /**
+     * @return list<int> the packages the person got a risk-change notification about
+     */
+    private function toldAbout(User $person): array
+    {
+        return Notification::query()
+            ->where('notifiable_id', $person->id)
+            ->where('type', 'risk_changed')
+            ->get()
+            ->map(fn (Notification $notification) => $notification->data['package_id'])
+            ->all();
     }
 
     /**
