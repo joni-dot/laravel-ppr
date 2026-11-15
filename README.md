@@ -128,10 +128,10 @@ The **Dashboard** is personal. It covers only the projects you are a member of, 
 
 Each project's **Overview** tab shows how many packages are open and the same seven numbers, a count per status, and two charts:
 
-- **Open packages by category:** one bar per category, split into red, amber and no risk. The red and amber parts open those packages.
+- **Open packages by category:** one bar per category, split into red, amber and no risk. The red and amber parts open those packages, except in the "No category" bar: the package list can't filter for packages without a category.
 - **Milestones due per week:** milestones not done yet, for this week and the 11 after it, labelled with each week's Monday. Overdue milestones are in the Overdue number instead.
 
-Every number above zero opens the package list filtered to exactly the packages it counts, and a browser test checks this for every number. The numbers mean:
+Every tile and status count above zero opens the package list filtered to exactly the packages it counts, and a browser test checks this. The open-packages total and the weekly milestone counts aren't links. The tiles mean:
 
 | Number                 | Packages it counts                                                        |
 | ---------------------- | ------------------------------------------------------------------------- |
