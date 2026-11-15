@@ -2,16 +2,17 @@
 
 namespace App\Http\Presenters;
 
-use App\Enums\PackageStatus;
 use App\Models\Package;
 use App\Models\Project;
 use App\Scheduling\MilestoneEntries;
 use App\Scheduling\MilestoneList;
 use App\Scheduling\PackageSchedule;
+use App\Scheduling\ProjectSchedules;
 use App\Scheduling\ScheduledMilestone;
 use App\Scheduling\SubPackageRollUp;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 /**
  * A package's milestone dates for its page, with the latest expected dates of its sub-packages.
@@ -29,17 +30,20 @@ final class PackageScheduleOverview
      *     today: string,
      * }
      */
-    public static function for(Project $project, Package $package, string $today): array
+    public static function for(Project $project, Package $package, string $today, bool $belowAFinishedPackage): array
     {
         $milestones = $project->milestones()->get(['id', 'name', 'is_need_date']);
         $list = MilestoneList::from($milestones);
         $tree = self::packageAndEverythingBelow($package);
         $entries = MilestoneEntries::forProject($project->id, array_values(array_map(fn (object $row): int => $row->id, $tree->all())));
-        $schedules = $tree->mapWithKeys(fn (object $row) => [$row->id => PackageSchedule::calculate($list, $entries[$row->id] ?? [])]);
+        $finished = ProjectSchedules::finishedIn($tree, $belowAFinishedPackage);
+        // Nobody waits for a finished package, so its missed dates stay where they were instead of moving with today.
+        $schedules = $tree->mapWithKeys(fn (object $row) => [$row->id => PackageSchedule::calculate($list, $entries[$row->id] ?? [], $finished[$row->id] ? null : $today)]);
 
         $schedule = $schedules[$package->id];
-        $rolledUp = $tree->count() > 1 ? SubPackageRollUp::latest(self::rollUpRows($tree, $schedules))[$package->id] : null;
+        $rolledUp = $tree->count() > 1 ? SubPackageRollUp::latest(self::rollUpRows($tree, $schedules, $finished))[$package->id] : null;
         $names = $milestones->pluck('name', 'id');
+        $isFinished = $finished[$package->id];
 
         return [
             'milestones' => array_map(fn (ScheduledMilestone $milestone) => [
@@ -53,6 +57,8 @@ final class PackageScheduleOverview
                 'expected' => $milestone->expected,
                 'latest' => $milestone->latest,
                 'isDone' => $milestone->isDone(),
+                // The forecast or planned date it missed, so the timeline can say which. A finished package has none.
+                'missedDueDate' => ! $isFinished && $milestone->isOverdue($today) ? $milestone->due() : null,
                 'expectedWithSubPackages' => $rolledUp[$milestone->milestoneId] ?? null,
             ], $schedule->milestones()),
             'needDate' => $schedule->needDate(),
@@ -67,27 +73,28 @@ final class PackageScheduleOverview
     /**
      * The package and all packages below it at any depth, in tree order.
      *
-     * @return Collection<int, object{id: int, parent_id: int|null, status: string}>
+     * @return Collection<int, stdClass>
      */
     private static function packageAndEverythingBelow(Package $package): Collection
     {
-        /** @var Collection<int, object{id: int, parent_id: int|null, status: string}> */
+        /** @var Collection<int, stdClass> */
         return $package->limitToItsTree(DB::table('packages'))
             ->orderBy('number_path')
             ->get(['id', 'parent_id', 'status']);
     }
 
     /**
-     * @param  Collection<int, object{id: int, parent_id: int|null, status: string}>  $tree
+     * @param  Collection<int, stdClass>  $tree
      * @param  Collection<int, PackageSchedule>  $schedules
-     * @return list<array{id: int, parentId: int|null, isCancelled: bool, dates: array<int, string|null>}>
+     * @param  array<int, bool>  $finished  per package id, from ProjectSchedules::finishedIn()
+     * @return list<array{id: int, parentId: int|null, isFinished: bool, dates: array<int, string|null>}>
      */
-    private static function rollUpRows(Collection $tree, Collection $schedules): array
+    private static function rollUpRows(Collection $tree, Collection $schedules, array $finished): array
     {
         return array_values($tree->map(fn (object $row) => [
             'id' => $row->id,
             'parentId' => $row->parent_id,
-            'isCancelled' => $row->status === PackageStatus::Cancelled->value,
+            'isFinished' => $finished[$row->id],
             'dates' => self::expectedDates($schedules[$row->id]),
         ])->all());
     }

@@ -18,7 +18,7 @@ export type ReasonFilter =
     | 'people'
     | 'no_need_date'
     | 'manual_flag';
-// "soon" is a milestone not done yet expected within DUE_SOON_DAYS, today included.
+// "soon" is a milestone not done yet due (forecast, else planned) within DUE_SOON_DAYS, today included.
 export type DueFilter = '' | 'soon';
 
 export type PackageFilters = {
@@ -75,7 +75,6 @@ const PEOPLE_REASONS: readonly RiskReason[] = [
     'no_buyer',
     'buyer_deactivated',
 ];
-const FINISHED_STATUSES: readonly PackageStatus[] = ['closed', 'cancelled'];
 
 /**
  * The filters a page address asks for. Values the page doesn't know (an old link, a typo, a category
@@ -187,7 +186,7 @@ function matchesReason(row: PackageRow, reason: ReasonFilter): boolean {
 
 function isDueSoon(row: PackageRow, today: string, dueBy: string): boolean {
     return (
-        !FINISHED_STATUSES.includes(row.status) &&
+        !row.isFinished &&
         row.dueDate !== null &&
         row.dueDate >= today &&
         row.dueDate <= dueBy

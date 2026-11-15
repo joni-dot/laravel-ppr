@@ -10,7 +10,7 @@ enum RiskReason: string
 {
     // Someone marked the package as high risk by hand, with a reason.
     case ManualFlag = 'manual_flag';
-    // A milestone that hasn't happened was expected before today.
+    // A milestone that hasn't happened was due (forecast, else planned) before today.
     case Overdue = 'overdue';
     // The float, counting sub-packages, is below the project's amber or red warning.
     case Late = 'late';

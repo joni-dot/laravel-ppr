@@ -14,7 +14,9 @@ export type ScheduleMilestone = {
     // The last day it can happen without making the package late.
     latest: string | null;
     isDone: boolean;
-    // The latest expected date among this package and its sub-packages that aren't cancelled.
+    // The forecast, else planned, date it missed while not done; null when not overdue or the package is finished.
+    missedDueDate: string | null;
+    // The latest expected date among this package and its sub-packages that aren't finished.
     expectedWithSubPackages: string | null;
 };
 

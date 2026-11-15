@@ -3,7 +3,6 @@
 namespace App\Actions\Risk;
 
 use App\Enums\DateReminderKind;
-use App\Enums\PackageStatus;
 use App\Models\Package;
 use App\Models\Project;
 use App\Models\User;
@@ -19,11 +18,12 @@ use Illuminate\Support\Facades\DB;
 use stdClass;
 
 /**
- * Reminds a package's owner and buyer of its milestone dates: when an expected date comes within their
- * own notification period, and when it has passed without the milestone being marked done. Closed and
- * cancelled packages, done milestones and milestones without a date get none.
+ * Reminds a package's owner and buyer of its milestone dates: when a due date (the forecast, else the
+ * planned date) comes within their own notification period, and when it has passed without the milestone
+ * being marked done. Finished packages (closed or cancelled, or below one), done milestones and milestones
+ * without a due date get none.
  *
- * Each reminder is sent once per person, package, milestone, kind and expected date (sent_reminders), so
+ * Each reminder is sent once per person, package, milestone, kind and due date (sent_reminders), so
  * a moved date gets a reminder of its own. A package checked for the first time has its overdue dates
  * recorded as reminded without telling anyone: its red risk badge already shows them, and the day the
  * feature goes live mustn't bring a flood of old news.
@@ -38,13 +38,13 @@ class SendDateReminders
     public function handle(Project $project, Collection $rows, ProjectSchedules $schedules, bool $onlyFirstChecks = false): void
     {
         $recipients = ProjectRecipients::of($project);
-        $today = Days::fromDate(now('UTC')->toDateString());
+        $today = Days::fromDate($schedules->today);
         $reminders = [];
 
         foreach ($rows as $row) {
             $isFirstCheck = $row->notified_risk_level === null;
 
-            if (($onlyFirstChecks && ! $isFirstCheck) || $this->isFinished($row)) {
+            if (($onlyFirstChecks && ! $isFirstCheck) || $schedules->isFinished($row->id)) {
                 continue;
             }
 
@@ -62,21 +62,18 @@ class SendDateReminders
         $this->send($project, $this->recordNew($reminders), $recipients, $schedules);
     }
 
-    private function isFinished(stdClass $row): bool
-    {
-        return $row->status === PackageStatus::Closed->value || $row->status === PackageStatus::Cancelled->value;
-    }
-
     /**
      * @return array{user_id: int, package_id: int, project_milestone_id: int, kind: string, due_date: string, days_left: int, quiet: bool}|null
      */
     private function reminder(int $packageId, ScheduledMilestone $milestone, User $person, int $today, bool $quiet): ?array
     {
-        if ($milestone->isDone() || $milestone->expected === null) {
+        $due = $milestone->due();
+
+        if ($milestone->isDone() || $due === null) {
             return null;
         }
 
-        $daysLeft = Days::fromDate($milestone->expected) - $today;
+        $daysLeft = Days::fromDate($due) - $today;
         $kind = DateReminderKind::forDaysLeft($daysLeft, $person->notification_days);
 
         if ($kind === null) {
@@ -88,7 +85,7 @@ class SendDateReminders
             'package_id' => $packageId,
             'project_milestone_id' => $milestone->milestoneId,
             'kind' => $kind->value,
-            'due_date' => $milestone->expected,
+            'due_date' => $due,
             'days_left' => $daysLeft,
             // Only overdue dates are kept quiet on a first check; a date coming up is still news.
             'quiet' => $quiet && $kind === DateReminderKind::Overdue,

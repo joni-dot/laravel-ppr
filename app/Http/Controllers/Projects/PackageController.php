@@ -70,7 +70,7 @@ class PackageController extends Controller
             parent: $parent,
         );
         // Its first check only stores its level, so later changes have something to compare with.
-        CheckProjectRisks::dispatch($project->id, $request->user()->id);
+        CheckProjectRisks::dispatch($project->id, $request->user()->id, savedPackageIds: [$package->id]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Package :number added.', ['number' => $package->number])]);
 
@@ -83,6 +83,7 @@ class PackageController extends Controller
         $package->load(['category:id,code,name', 'owner:id,name', 'buyer:id,name']);
         // Read once, so the timeline's today and the risk shown next to it are the same day.
         $today = now('UTC')->toDateString();
+        $belowAFinishedPackage = $package->isBelowAFinishedPackage();
 
         return Inertia::render('projects/packages/Show', [
             'project' => ProjectHeader::for($project, $user),
@@ -103,8 +104,8 @@ class PackageController extends Controller
                 'notes' => $package->notes,
             ],
             'ancestors' => $this->ancestors($project, $package),
-            'schedule' => PackageScheduleOverview::for($project, $package, $today),
-            'risk' => PackageRiskOverview::for($project, $package, $today),
+            'schedule' => PackageScheduleOverview::for($project, $package, $today, $belowAFinishedPackage),
+            'risk' => PackageRiskOverview::for($project, $package, $today, $belowAFinishedPackage),
             'subPackages' => $this->subPackages($package),
             'categories' => $this->categories($project),
             'can' => [
@@ -163,7 +164,7 @@ class PackageController extends Controller
 
         $package->save();
         $notifyNewAssignees->handle($package, $request->user());
-        CheckProjectRisks::dispatch($project->id, $request->user()->id);
+        CheckProjectRisks::dispatch($project->id, $request->user()->id, savedPackageIds: [$package->id]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Package saved.')]);
 
@@ -191,9 +192,9 @@ class PackageController extends Controller
                 'categories.code as category_code', 'owners.name as owner_name', 'buyers.name as buyer_name',
             ])
             ->get();
-        $schedules = ProjectSchedules::for($project, $rows);
-        $columns = PackageListSchedule::for($schedules, $today);
-        $risks = ProjectRisks::fromRows($project, $rows, $schedules, $today);
+        $schedules = ProjectSchedules::for($project, $rows, $today);
+        $columns = PackageListSchedule::for($schedules);
+        $risks = ProjectRisks::fromRows($project, $rows, $schedules);
 
         return $rows
             ->map(fn (object $row) => (object) [

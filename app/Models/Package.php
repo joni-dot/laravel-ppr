@@ -158,6 +158,26 @@ class Package extends Model
     }
 
     /**
+     * Whether a package above this one is closed or cancelled, which makes this one finished too.
+     */
+    public function isBelowAFinishedPackage(): bool
+    {
+        $paths = array_map(fn (array $path) => '{'.implode(',', $path).'}', $this->ancestorNumberPaths());
+
+        if ($paths === []) {
+            return false;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($paths), '?::integer[]'));
+
+        return self::query()
+            ->where('project_id', $this->project_id)
+            ->whereRaw("number_path in ({$placeholders})", $paths)
+            ->whereIn('status', PackageStatus::finished())
+            ->exists();
+    }
+
+    /**
      * Limits a query on the packages table to this package and every package below it at any depth.
      * Number paths sort like the tree, so everything under [3, 2] lies between [3, 2] and [3, 3],
      * and the project's number path index finds it.

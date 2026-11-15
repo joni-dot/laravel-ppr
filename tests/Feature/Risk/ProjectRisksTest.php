@@ -122,7 +122,38 @@ class ProjectRisksTest extends TestCase
 
         $risk = ProjectRisks::for($this->project)[$package->id];
         $this->assertSame([RiskReason::Overdue], $risk->reasons);
-        $this->assertSame('2027-03-10', $risk->overdueMilestone?->expected);
+        $this->assertSame('2027-03-10', $risk->overdueMilestone?->due());
+    }
+
+    public function test_everything_below_a_closed_or_cancelled_package_is_finished_and_never_at_risk()
+    {
+        foreach ([PackageStatus::Closed, PackageStatus::Cancelled] as $status) {
+            $parent = $this->addPackage("{$status->value} parent");
+            $child = $this->addPackage('Child', $parent, owner: null);
+            $grandchild = $this->addPackage('Grandchild', $child);
+            $this->fillIn($grandchild, 'Order placed', ['planned_date' => '2027-03-01']);
+            $parent->forceFill(['status' => $status])->save();
+
+            $risks = ProjectRisks::for($this->project);
+
+            // Their own status is left as it was.
+            $this->assertSame(PackageStatus::Ordered, $child->fresh()->status);
+            $this->assertSame(RiskLevel::None, $risks[$child->id]->level, $status->value);
+            $this->assertSame(RiskLevel::None, $risks[$grandchild->id]->level, $status->value);
+            $this->assertTrue($grandchild->isBelowAFinishedPackage());
+        }
+    }
+
+    public function test_a_finished_sub_package_does_not_make_its_parent_late()
+    {
+        $parent = $this->addPackage('Transformer');
+        $this->fillIn($parent, 'Required on site', ['planned_date' => '2027-06-01', 'forecast_date' => '2027-04-01']);
+        $closed = $this->addPackage('Delivered long ago', $parent);
+        // Never marked done, so it would be expected far too late if it still counted.
+        $this->fillIn($closed, 'Required on site', ['forecast_date' => '2027-09-01']);
+        $closed->forceFill(['status' => PackageStatus::Closed])->save();
+
+        $this->assertSame(RiskLevel::None, ProjectRisks::for($this->project)[$parent->id]->level);
     }
 
     public function test_a_whole_project_takes_the_same_queries_however_many_packages_it_has()

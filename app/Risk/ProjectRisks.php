@@ -2,7 +2,6 @@
 
 namespace App\Risk;
 
-use App\Enums\PackageStatus;
 use App\Models\Project;
 use App\Scheduling\ProjectSchedules;
 use Illuminate\Database\Query\Builder;
@@ -29,7 +28,7 @@ final class ProjectRisks
     {
         $rows = self::packageRows($project)->get();
 
-        return self::fromRows($project, $rows, ProjectSchedules::for($project, $rows), now('UTC')->toDateString());
+        return self::fromRows($project, $rows, ProjectSchedules::for($project, $rows, now('UTC')->toDateString()));
     }
 
     /**
@@ -52,25 +51,23 @@ final class ProjectRisks
 
     /**
      * @param  iterable<stdClass>  $rows  rows from packageRows(), in tree order
-     * @param  ProjectSchedules  $schedules  the schedules of the same rows
-     * @param  string  $today  "YYYY-MM-DD" in UTC. The caller reads it once, so everything one answer shows
-     *                         counts from the same day even when the request runs across midnight.
+     * @param  ProjectSchedules  $schedules  the schedules of the same rows; overdue counts from their today
      * @return array<int, PackageRisk> per package id, in the order of the rows
      */
-    public static function fromRows(Project $project, iterable $rows, ProjectSchedules $schedules, string $today): array
+    public static function fromRows(Project $project, iterable $rows, ProjectSchedules $schedules): array
     {
         $thresholds = RiskThresholds::of($project);
         $risks = [];
 
         foreach ($rows as $row) {
             $risks[$row->id] = PackageRisk::assess(new PackageRiskFacts(
-                status: PackageStatus::from($row->status),
+                isFinished: $schedules->isFinished($row->id),
                 schedule: $schedules->of($row->id),
                 floatWithSubPackages: $schedules->floatWithSubPackages($row->id),
                 isFlagged: $row->risk_flag_reason !== null,
                 owner: AssignedPerson::of($row->owner_id, $row->owner_deactivated_at),
                 buyer: AssignedPerson::of($row->buyer_id, $row->buyer_deactivated_at),
-            ), $thresholds, $today);
+            ), $thresholds, $schedules->today);
         }
 
         return $risks;

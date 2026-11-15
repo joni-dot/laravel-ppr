@@ -21,4 +21,23 @@ final readonly class ScheduledMilestone
     {
         return $this->entry->actual !== null;
     }
+
+    /**
+     * The date someone committed to: the forecast, else the planned date. Overdue, due soon and the date
+     * reminders count from it, not from the expected date, which is only an estimate from lead times.
+     */
+    public function due(): ?string
+    {
+        return $this->entry->forecast ?? $this->entry->planned;
+    }
+
+    /**
+     * @param  string  $today  "YYYY-MM-DD"
+     */
+    public function isOverdue(string $today): bool
+    {
+        $due = $this->due();
+
+        return ! $this->isDone() && $due !== null && $due < $today;
+    }
 }

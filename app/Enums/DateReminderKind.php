@@ -7,9 +7,9 @@ namespace App\Enums;
  */
 enum DateReminderKind: string
 {
-    // The expected date is within the person's notification period.
+    // The due date (forecast, else planned) is within the person's notification period.
     case ComingUp = 'coming_up';
-    // The expected date has passed and the milestone isn't marked done.
+    // The due date has passed and the milestone isn't marked done.
     case Overdue = 'overdue';
 
     /**
