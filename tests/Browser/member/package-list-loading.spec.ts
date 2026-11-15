@@ -60,4 +60,6 @@ test('the package list opens at once and shows placeholder rows until the packag
         page.getByText(`1 of ${packageCount} packages match`),
     ).toBeVisible();
     await expect(placeholder).toHaveCount(0);
+    // The address shows the search only once the packages are there, so their answer can't undo it.
+    await expect(page).toHaveURL(/\/packages\?search=item\+150$/);
 });

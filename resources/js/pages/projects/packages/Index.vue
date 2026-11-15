@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Deferred, Head, Link } from '@inertiajs/vue3';
+import { Deferred, Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Search } from '@lucide/vue';
 import { watchDebounced } from '@vueuse/core';
-import { computed, ref, useTemplateRef, watch } from 'vue';
+import { computed, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import PackageController from '@/actions/App/Http/Controllers/Projects/PackageController';
 import ProjectNumberingController from '@/actions/App/Http/Controllers/Projects/ProjectNumberingController';
 import PackageTreeTable from '@/components/packages/PackageTreeTable.vue';
@@ -13,6 +13,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { trans } from '@/lib/i18n';
+import {
+    DUE_SOON_DAYS,
+    filtersFromQuery,
+    filtersToQuery,
+    isFiltering as hasFilters,
+    NO_FILTERS,
+    packageMatcher,
+} from '@/lib/packageFilters';
+import type { PackageFilters, ReasonFilter } from '@/lib/packageFilters';
 import { packagesWithChildren, visiblePackageRows } from '@/lib/packageTree';
 import { projectBreadcrumbs } from '@/lib/projectBreadcrumbs';
 import type {
@@ -36,6 +45,8 @@ const props = defineProps<{
     project: ProjectHeader;
     // Deferred: missing while the page first loads; see PackageController::index().
     packages?: PackageRow[];
+    // Deferred with the tree: the UTC day its due dates were worked out for.
+    today?: string;
     categories: ProjectCategory[];
     categoryRequired: boolean;
     statuses: Option<PackageStatus>[];
@@ -44,17 +55,21 @@ const props = defineProps<{
 }>();
 
 // Adding a package reloads the tree with it, instead of dropping the tree and loading it again.
-const RELOAD_AFTER_ADDING = ['packages'];
+const RELOAD_AFTER_ADDING = ['packages', 'today'];
 
 // Searching waits for a short pause in typing, so the list isn't filtered again for every letter.
 const SEARCH_DELAY_MS = 150;
 
-const searchInput = ref('');
-const search = ref('');
-const statusFilter = ref<PackageStatus | ''>('');
-const categoryFilter = ref<number | ''>('');
-// "atRisk" is amber or red.
-const riskFilter = ref<'' | 'atRisk' | 'red'>('');
+const page = usePage();
+
+// The filters come from the page address, so a dashboard number or a shared link opens the list filtered.
+const filters = ref<PackageFilters>(
+    filtersFromQuery(new URL(page.url, window.location.origin).searchParams, {
+        statuses: props.statuses.map((status) => status.value),
+        categoryIds: props.categories.map((category) => category.id),
+    }),
+);
+const searchInput = ref(filters.value.search);
 const folded = ref(new Set<number>());
 const addingUnderId = ref<number | null>(null);
 const table = useTemplateRef<InstanceType<typeof PackageTreeTable>>('table');
@@ -62,13 +77,26 @@ const table = useTemplateRef<InstanceType<typeof PackageTreeTable>>('table');
 watchDebounced(
     searchInput,
     (value) => {
-        search.value = value;
+        filters.value.search = value;
     },
     { debounce: SEARCH_DELAY_MS },
 );
 
+// One select for the reasons and the due date, which the address keeps as two filters.
+type AttentionFilter = ReasonFilter | 'due_soon';
+
+const attentionFilter = computed<AttentionFilter>({
+    get: () =>
+        filters.value.due === 'soon' ? 'due_soon' : filters.value.reason,
+    set: (value) => {
+        filters.value.reason = value === 'due_soon' ? '' : value;
+        filters.value.due = value === 'due_soon' ? 'soon' : '';
+    },
+});
+
 // Empty until the tree has loaded, so the filters can be used meanwhile.
 const allPackages = computed(() => props.packages ?? []);
+const hasLoaded = computed(() => props.packages !== undefined);
 
 const parents = computed(() => packagesWithChildren(allPackages.value));
 
@@ -76,72 +104,62 @@ const purchaseTypeLabels = computed(
     () => new Map(props.purchaseTypes.map((type) => [type.value, type.label])),
 );
 
-const searchTerm = computed(() => search.value.trim().toLocaleLowerCase());
+const isFiltering = computed(() => hasFilters(filters.value));
 
-const isFiltering = computed(
-    () =>
-        searchTerm.value !== '' ||
-        statusFilter.value !== '' ||
-        categoryFilter.value !== '' ||
-        riskFilter.value !== '',
-);
+const matchingIds = computed(() => {
+    if (!isFiltering.value) {
+        return null;
+    }
 
-const matchingIds = computed(() =>
-    isFiltering.value
-        ? new Set(
-              allPackages.value.filter(rowMatchesFilters).map((row) => row.id),
-          )
-        : null,
-);
+    // The server's day, not the browser's clock, so "due soon" counts what the dashboard counts.
+    const matches = packageMatcher(filters.value, props.today);
+
+    return new Set(allPackages.value.filter(matches).map((row) => row.id));
+});
 
 const rows = computed(() =>
     visiblePackageRows(allPackages.value, folded.value, matchingIds.value),
 );
 
-watch([search, statusFilter, categoryFilter, riskFilter], () =>
-    table.value?.scrollToStart(),
-);
+watch(filters, () => table.value?.scrollToStart(), { deep: true });
+
+// Waits for the tree: its request carries the address it was sent from, and answering would put that
+// address back. After that, a reload (such as after adding a package) asks for the filtered address.
+watch([filters, hasLoaded], () => hasLoaded.value && keepAddressInStep(), {
+    deep: true,
+});
+
+// A save that was on its way while the filters changed (quick add) answers with the address it was sent
+// from, so the address is put back in step with the filters once it arrives. Only for answers that stay on
+// this list: leaving for another page also ends in "success", and its address must stay.
+const stopListening = router.on('success', (event) => {
+    const answer = event.detail.page;
+    const staysOnThisList =
+        answer.component === page.component &&
+        (answer.props.project as ProjectHeader | undefined)?.id ===
+            props.project.id;
+
+    if (staysOnThisList && hasLoaded.value) {
+        keepAddressInStep();
+    }
+});
+onUnmounted(stopListening);
 
 const cannotAddWithoutCategory = computed(
     () => props.categoryRequired && props.categories.length === 0,
 );
 
-// Each row's searchable text, lowercased once instead of on every search.
-const searchTexts = new WeakMap<PackageRow, string>();
+/**
+ * Shows the filters in the page address without asking the server. It replaces the current history
+ * entry instead of adding one, so Back leaves the list rather than undoing filters one by one.
+ */
+function keepAddressInStep(): void {
+    const url = PackageController.index.url(props.project.id, {
+        query: filtersToQuery(filters.value),
+    });
 
-function searchTextOf(row: PackageRow): string {
-    let text = searchTexts.get(row);
-
-    if (text === undefined) {
-        text = [row.number, row.title, row.ownerName, row.buyerName]
-            .filter((part) => part !== null)
-            .join('\n')
-            .toLocaleLowerCase();
-        searchTexts.set(row, text);
-    }
-
-    return text;
-}
-
-function rowMatchesFilters(row: PackageRow): boolean {
-    return (
-        (searchTerm.value === '' ||
-            searchTextOf(row).includes(searchTerm.value)) &&
-        (statusFilter.value === '' || row.status === statusFilter.value) &&
-        (categoryFilter.value === '' ||
-            row.categoryId === categoryFilter.value) &&
-        rowMatchesRiskFilter(row)
-    );
-}
-
-function rowMatchesRiskFilter(row: PackageRow): boolean {
-    switch (riskFilter.value) {
-        case '':
-            return true;
-        case 'atRisk':
-            return row.risk !== null;
-        case 'red':
-            return row.risk?.level === 'red';
+    if (url !== page.url) {
+        router.replace({ url, preserveState: true, preserveScroll: true });
     }
 }
 
@@ -175,10 +193,7 @@ function startAddingUnder(row: PackageRow): void {
 
 function clearFilters(): void {
     searchInput.value = '';
-    search.value = '';
-    statusFilter.value = '';
-    categoryFilter.value = '';
-    riskFilter.value = '';
+    filters.value = { ...NO_FILTERS };
 }
 </script>
 
@@ -217,7 +232,7 @@ function clearFilters(): void {
         </template>
 
         <div class="flex flex-wrap items-center gap-2">
-            <div class="relative w-full max-w-sm">
+            <div class="relative max-w-sm min-w-48 flex-1">
                 <Search
                     class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                 />
@@ -230,9 +245,9 @@ function clearFilters(): void {
                 />
             </div>
             <NativeSelect
-                v-model="statusFilter"
+                v-model="filters.status"
                 :aria-label="$t('Filter by status')"
-                class="w-44"
+                class="w-36"
             >
                 <option value="">{{ $t('All statuses') }}</option>
                 <option
@@ -245,9 +260,9 @@ function clearFilters(): void {
             </NativeSelect>
             <NativeSelect
                 v-if="categories.length > 0"
-                v-model="categoryFilter"
+                v-model="filters.category"
                 :aria-label="$t('Filter by category')"
-                class="w-56"
+                class="w-48"
             >
                 <option value="">{{ $t('All categories') }}</option>
                 <option
@@ -264,15 +279,32 @@ function clearFilters(): void {
                 </option>
             </NativeSelect>
             <NativeSelect
-                v-model="riskFilter"
+                v-model="filters.risk"
                 :aria-label="$t('Filter by risk')"
-                class="w-56"
+                class="w-48"
             >
                 <option value="">{{ $t('All risk levels') }}</option>
                 <option value="atRisk">
                     {{ $t('At risk (amber or red)') }}
                 </option>
+                <option value="amber">{{ $t('Amber only') }}</option>
                 <option value="red">{{ $t('Red only') }}</option>
+            </NativeSelect>
+            <NativeSelect
+                v-model="attentionFilter"
+                :aria-label="$t('Filter by what needs attention')"
+                class="w-52"
+            >
+                <option value="">{{ $t('All reasons and dates') }}</option>
+                <option value="overdue">{{ $t('Overdue') }}</option>
+                <option value="due_soon">
+                    {{ $t('Due within :days days', { days: DUE_SOON_DAYS }) }}
+                </option>
+                <option value="people">
+                    {{ $t('Missing owner or buyer') }}
+                </option>
+                <option value="no_need_date">{{ $t('No need date') }}</option>
+                <option value="manual_flag">{{ $t('Flagged by hand') }}</option>
             </NativeSelect>
             <Button
                 v-if="isFiltering"
@@ -293,7 +325,7 @@ function clearFilters(): void {
         </div>
 
         <p
-            v-if="isFiltering && packages"
+            v-if="isFiltering && hasLoaded"
             class="text-sm text-muted-foreground"
             aria-live="polite"
         >

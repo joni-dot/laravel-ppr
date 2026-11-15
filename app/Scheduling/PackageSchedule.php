@@ -85,6 +85,26 @@ final class PackageSchedule
     }
 
     /**
+     * The milestone not done yet whose expected date comes first from today on: the next date someone has
+     * to meet. Unlike next(), it skips milestones without a date and ones already overdue.
+     *
+     * @param  string  $today  "YYYY-MM-DD"
+     */
+    public function nextDue(string $today): ?ScheduledMilestone
+    {
+        $nextDue = null;
+
+        foreach ($this->milestones as $milestone) {
+            if (! $milestone->isDone() && $milestone->expected !== null && $milestone->expected >= $today
+                && ($nextDue === null || $milestone->expected < $nextDue->expected)) {
+                $nextDue = $milestone;
+            }
+        }
+
+        return $nextDue;
+    }
+
+    /**
      * When the project needs the package: the planned date of the need-date milestone.
      */
     public function needDate(): ?string

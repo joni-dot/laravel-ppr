@@ -75,8 +75,14 @@ test('an admin adds packages and sub-packages at any depth', async ({
         page.getByText('Package PP3-ELE-0002.01.01 added.'),
     ).toBeVisible();
     // On a small screen the "added" notices can cover the Done button, and they stay while the pointer rests
-    // on them, as it does after clicking the add button in the last column. A person moves the pointer away.
+    // on them, as it does after clicking the add button in the last column. A person moves the pointer away
+    // and waits for them to close; clicking through them would rest the pointer on them again.
     await page.mouse.move(0, 0);
+    await expect(
+        page
+            .getByRole('region', { name: /Notifications/ })
+            .getByRole('listitem'),
+    ).toHaveCount(0);
     await page.getByRole('button', { name: 'Done' }).click();
 
     const bolts = page.getByRole('link', { name: 'Bolts' });
@@ -214,4 +220,25 @@ test('the list shows when a package is needed and how late it is', async ({
     await expect(cells.nth(3)).toContainText(
         'Late: expected 5 days after the need date',
     );
+});
+
+test('adding a package keeps the filters in the address', async ({ page }) => {
+    await page.goto(`/projects/${id}/packages?search=trolley`);
+    await expect(page.getByLabel('Search packages')).toHaveValue('trolley');
+    await expect(page.getByText(/^0 of \d+ packages match$/)).toBeVisible();
+
+    await page.getByLabel('Title of the new package').fill('Cable trolley');
+    await page
+        .getByRole('combobox', { name: 'Category' })
+        .first()
+        .selectOption({ label: 'ELE – Electrical' });
+    await page.getByRole('button', { name: 'Add package' }).click();
+    await expect(page.getByText(/Package PP3-ELE-\d+ added\./)).toBeVisible();
+
+    // The list reloads from the filtered address, so the filter stays and finds the new package.
+    await expect(page).toHaveURL(/\/packages\?search=trolley$/);
+    await expect(page.getByText(/^1 of \d+ packages match$/)).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel('Search packages')).toHaveValue('trolley');
+    await expect(page.getByText(/^1 of \d+ packages match$/)).toBeVisible();
 });

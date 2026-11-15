@@ -41,10 +41,16 @@ class PackageController extends Controller
     public function index(Request $request, Project $project): Response
     {
         $user = $request->user();
+        // Read once, so the rows' risks and due dates and the "today" the list filters with are the same day,
+        // even when the request runs across midnight.
+        $today = now('UTC')->toDateString();
 
         return Inertia::render('projects/packages/Index', [
             'project' => ProjectHeader::for($project, $user),
-            'packages' => Inertia::defer(fn () => $this->packageTree($project, $user)),
+            'packages' => Inertia::defer(fn () => $this->packageTree($project, $user, $today)),
+            // The day the rows' due dates were worked out for, so the "due soon" filter counts from the same day as
+            // the dashboard, whatever the browser's clock says. Loaded in the same request as the tree.
+            'today' => Inertia::defer(fn () => $today),
             'categories' => $this->categories($project),
             'categoryRequired' => $project->number_includes_category,
             'statuses' => PackageStatus::options(),
@@ -75,6 +81,8 @@ class PackageController extends Controller
     {
         $user = $request->user();
         $package->load(['category:id,code,name', 'owner:id,name', 'buyer:id,name']);
+        // Read once, so the timeline's today and the risk shown next to it are the same day.
+        $today = now('UTC')->toDateString();
 
         return Inertia::render('projects/packages/Show', [
             'project' => ProjectHeader::for($project, $user),
@@ -95,8 +103,8 @@ class PackageController extends Controller
                 'notes' => $package->notes,
             ],
             'ancestors' => $this->ancestors($project, $package),
-            'schedule' => PackageScheduleOverview::for($project, $package),
-            'risk' => PackageRiskOverview::for($project, $package),
+            'schedule' => PackageScheduleOverview::for($project, $package, $today),
+            'risk' => PackageRiskOverview::for($project, $package, $today),
             'subPackages' => $this->subPackages($package),
             'categories' => $this->categories($project),
             'can' => [
@@ -169,7 +177,7 @@ class PackageController extends Controller
      *
      * @return array<int, object>
      */
-    private function packageTree(Project $project, User $user): array
+    private function packageTree(Project $project, User $user, string $today): array
     {
         /** @var PackagePolicy $policy */
         $policy = Gate::getPolicyFor(Package::class);
@@ -184,8 +192,8 @@ class PackageController extends Controller
             ])
             ->get();
         $schedules = ProjectSchedules::for($project, $rows);
-        $columns = PackageListSchedule::for($schedules);
-        $risks = ProjectRisks::fromRows($project, $rows, $schedules);
+        $columns = PackageListSchedule::for($schedules, $today);
+        $risks = ProjectRisks::fromRows($project, $rows, $schedules, $today);
 
         return $rows
             ->map(fn (object $row) => (object) [

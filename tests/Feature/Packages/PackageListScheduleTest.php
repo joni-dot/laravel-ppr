@@ -60,6 +60,21 @@ class PackageListScheduleTest extends TestCase
                 ->where('packages.1.floatDays', null));
     }
 
+    public function test_each_row_has_its_first_coming_due_date_and_the_tree_says_which_day_that_was_worked_out_for()
+    {
+        $this->travelTo('2027-03-10 23:30:00');
+        $pump = $this->addPackage('Pump');
+        // The first milestone is overdue; the due date is the first one from today on.
+        $this->fillIn($pump, 'Specification ready', ['planned_date' => '2027-03-01']);
+        $this->fillIn($pump, 'Order placed', ['forecast_date' => '2027-03-12']);
+
+        $this->actingAs($this->manager)
+            ->getPackageTree($this->project)
+            ->assertInertia(fn ($page) => $page
+                ->where('packages.0.dueDate', '2027-03-12')
+                ->where('today', '2027-03-10'));
+    }
+
     public function test_a_package_is_expected_when_the_last_package_below_it_is()
     {
         $transformer = $this->addPackage('Transformer');

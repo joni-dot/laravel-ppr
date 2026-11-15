@@ -26,7 +26,7 @@ trait LoadsPackageTree
     {
         return [
             Header::PARTIAL_COMPONENT => 'projects/packages/Index',
-            Header::PARTIAL_ONLY => 'packages',
+            Header::PARTIAL_ONLY => 'packages,today',
         ];
     }
 }
