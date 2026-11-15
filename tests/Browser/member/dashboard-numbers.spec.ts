@@ -3,8 +3,8 @@ import { dashboardProject } from '../support/test-data';
 import { expect, test } from '../support/test';
 
 /**
- * Every number on a project's Overview tab must open a package list showing exactly the packages it
- * counts. The numbers come from app/Dashboard/ProjectAttention.php and the list's filters from
+ * Every tile and status count on a project's Overview tab must open a package list showing exactly the
+ * packages it counts. The numbers come from app/Dashboard/ProjectAttention.php and the list's filters from
  * resources/js/lib/packageFilters.ts; this test fails when the two disagree.
  */
 
@@ -191,4 +191,14 @@ test('due soon counts from the server day, whatever the browser clock says', asy
     await page.goto(`${packageList}?due=soon`);
 
     await expectListToMatch(page, tiles.dueSoon);
+});
+
+test('an address with both a reason and due soon keeps only what the select can show', async ({
+    page,
+}) => {
+    // The app never builds this address; it can come from a hand-edited or old link.
+    await page.goto(`${packageList}?reason=overdue&due=soon`);
+
+    await expectListToMatch(page, tiles.dueSoon);
+    await expect(page).toHaveURL(/\?due=soon$/);
 });

@@ -87,6 +87,9 @@ export function filtersFromQuery(
 ): PackageFilters {
     const status = query.get('status') ?? '';
     const category = Number(query.get('category'));
+    // The list has one "needs attention" select, so a hand-edited address with both a reason and
+    // "due soon" keeps only what the select can show; otherwise a hidden filter narrows the list.
+    const due = query.get('due') === 'soon' ? 'soon' : '';
 
     return {
         search: (query.get('search') ?? '').slice(0, 100),
@@ -95,8 +98,9 @@ export function filtersFromQuery(
             : '',
         category: known.categoryIds.includes(category) ? category : '',
         risk: oneOf(query.get('risk'), RISK_FILTERS),
-        reason: oneOf(query.get('reason'), REASON_FILTERS),
-        due: query.get('due') === 'soon' ? 'soon' : '',
+        reason:
+            due === 'soon' ? '' : oneOf(query.get('reason'), REASON_FILTERS),
+        due,
     };
 }
 
