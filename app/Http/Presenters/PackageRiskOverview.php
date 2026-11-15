@@ -25,12 +25,12 @@ final class PackageRiskOverview
      *     flag: array{reason: string, flaggedByName: string|null, flaggedAt: string|null}|null,
      * }
      */
-    public static function for(Project $project, Package $package): array
+    public static function for(Project $project, Package $package, string $today): array
     {
         // Its sub-packages too, because its float counts them.
         $rows = $package->limitToItsTree(ProjectRisks::packageRows($project))->get();
         $schedules = ProjectSchedules::for($project, $rows, allOfTheProject: false);
-        $risk = ProjectRisks::fromRows($project, $rows, $schedules)[$package->id];
+        $risk = ProjectRisks::fromRows($project, $rows, $schedules, $today)[$package->id];
         $thresholds = RiskThresholds::of($project);
 
         return [

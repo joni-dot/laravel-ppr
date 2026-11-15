@@ -29,7 +29,7 @@ final class PackageScheduleOverview
      *     today: string,
      * }
      */
-    public static function for(Project $project, Package $package): array
+    public static function for(Project $project, Package $package, string $today): array
     {
         $milestones = $project->milestones()->get(['id', 'name', 'is_need_date']);
         $list = MilestoneList::from($milestones);
@@ -60,7 +60,7 @@ final class PackageScheduleOverview
             'floatDays' => $schedule->float(),
             'withSubPackages' => $rolledUp === null ? null : self::needDateWithSubPackages($schedule, $rolledUp, $list),
             // The day the risk rules count overdue from, so the page's timeline marks the same today.
-            'today' => now('UTC')->toDateString(),
+            'today' => $today,
         ];
     }
 

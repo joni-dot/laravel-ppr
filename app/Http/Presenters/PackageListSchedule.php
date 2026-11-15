@@ -14,9 +14,8 @@ final class PackageListSchedule
      *
      * @return array<int, array{nextMilestoneName: string|null, nextMilestoneDate: string|null, dueDate: string|null, needDate: string|null, expectedNeedDate: string|null, floatDays: int|null}>
      */
-    public static function for(ProjectSchedules $schedules): array
+    public static function for(ProjectSchedules $schedules, string $today): array
     {
-        $today = now('UTC')->toDateString();
         $columns = [];
 
         foreach ($schedules->all() as $id => $schedule) {

@@ -29,7 +29,7 @@ class NotifyRiskChanges
      */
     public function handle(Project $project, Collection $rows, ProjectSchedules $schedules, ?int $changedById): void
     {
-        $risks = ProjectRisks::fromRows($project, $rows, $schedules);
+        $risks = ProjectRisks::fromRows($project, $rows, $schedules, now('UTC')->toDateString());
         $changes = $this->changedLevels($rows, $risks);
 
         if ($changes === []) {

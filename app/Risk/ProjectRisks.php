@@ -29,7 +29,7 @@ final class ProjectRisks
     {
         $rows = self::packageRows($project)->get();
 
-        return self::fromRows($project, $rows, ProjectSchedules::for($project, $rows));
+        return self::fromRows($project, $rows, ProjectSchedules::for($project, $rows), now('UTC')->toDateString());
     }
 
     /**
@@ -53,12 +53,13 @@ final class ProjectRisks
     /**
      * @param  iterable<stdClass>  $rows  rows from packageRows(), in tree order
      * @param  ProjectSchedules  $schedules  the schedules of the same rows
+     * @param  string  $today  "YYYY-MM-DD" in UTC. The caller reads it once, so everything one answer shows
+     *                         counts from the same day even when the request runs across midnight.
      * @return array<int, PackageRisk> per package id, in the order of the rows
      */
-    public static function fromRows(Project $project, iterable $rows, ProjectSchedules $schedules): array
+    public static function fromRows(Project $project, iterable $rows, ProjectSchedules $schedules, string $today): array
     {
         $thresholds = RiskThresholds::of($project);
-        $today = now('UTC')->toDateString();
         $risks = [];
 
         foreach ($rows as $row) {

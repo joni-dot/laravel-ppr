@@ -48,8 +48,9 @@ final readonly class ProjectAttention
     {
         $rows = array_values(self::rows($project)->get()->all());
         $schedules = ProjectSchedules::for($project, $rows);
+        $today = now('UTC')->toDateString();
 
-        return new self($rows, $schedules, ProjectRisks::fromRows($project, $rows, $schedules), now('UTC')->toDateString());
+        return new self($rows, $schedules, ProjectRisks::fromRows($project, $rows, $schedules, $today), $today);
     }
 
     /**
