@@ -85,6 +85,15 @@ export const riskCheckPackages = {
     },
 } as const;
 
+// A cancelled package and its sub-package, which counts as finished because of it. Open them by title.
+export const finishedParentProject = {
+    id: 10,
+    name: 'Finished Parent Project',
+    code: 'FP10',
+    cancelledParent: 'Cancelled frame',
+    subPackage: 'Leftover bolts',
+} as const;
+
 // The packages of the risk project, in list order. "Overdue pump" is a sub-package of "Main skid".
 export const riskPackages = {
     mainSkid: { id: 3, title: 'Main skid' },
@@ -102,8 +111,12 @@ export const seededPackage = {
     installedForecast: '2027-09-30',
 } as const;
 
-// The only package of the notification project at the start. Nobody owns or buys it.
+// The first package of the notification project. Nobody owns or buys it.
 export const notifiedPackage = {
     number: 'NP5-MEC-0001',
     title: 'Notified valve',
 } as const;
+
+// Eleven more packages of the notification project, "Summary pump 01" to "Summary pump 11", which the member owns
+// and buys. Each has 151 days to spare; an amber warning above that turns them all amber at once.
+export const summaryPackages = { count: 11, daysToSpare: 151 } as const;
