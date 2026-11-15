@@ -24,8 +24,9 @@ class NotificationController extends Controller
                 'id' => $notification->id,
                 'kind' => $notification->type,
                 'projectName' => $notification->project->name,
-                'packageNumber' => $notification->data['package_number'],
-                'packageTitle' => $notification->data['package_title'],
+                // Null for a notification about the whole project.
+                'packageNumber' => $notification->data['package_number'] ?? null,
+                'packageTitle' => $notification->data['package_title'] ?? null,
                 'params' => (object) $notification->data['params'],
                 'isRead' => $notification->read_at !== null,
                 'createdAt' => $notification->created_at?->toIso8601String(),
@@ -37,11 +38,16 @@ class NotificationController extends Controller
     }
 
     /**
-     * Opening a notification marks it as read and goes to the package it is about.
+     * Opening a notification marks it as read and goes to the package it is about, or to the project's
+     * package list when it is about the whole project.
      */
     public function show(Notification $notification): RedirectResponse
     {
         $notification->markAsRead();
+
+        if (! isset($notification->data['package_id'])) {
+            return to_route('projects.packages.index', ['project' => $notification->project_id]);
+        }
 
         return to_route('projects.packages.show', [
             'project' => $notification->project_id,

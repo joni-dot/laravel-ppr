@@ -29,17 +29,17 @@ test('the daily check tells a package owner about overdue and coming dates', asy
 
     await expect(
         unread.filter({
-            hasText: `${name}: Delivered from supplier is expected in 3 days (${deliveryDate}).`,
+            hasText: `${name}: Delivered from supplier is due in 3 days (${deliveryDate}).`,
         }),
     ).toHaveCount(1);
     await expect(
         unread.filter({
-            hasText: `${name}: Order placed was expected on ${orderDate} and isn't marked done.`,
+            hasText: `${name}: Order placed was due on ${orderDate} and isn't marked done.`,
         }),
     ).toHaveCount(1);
     await expect(
         unread.filter({
-            hasText: `${name}: risk is now Red (was No risk): Overdue: Order placed was expected on ${orderDate}.`,
+            hasText: `${name}: risk is now Red (was No risk): Overdue: Order placed was due on ${orderDate}.`,
         }),
     ).toHaveCount(1);
 });

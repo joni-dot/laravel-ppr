@@ -2,7 +2,7 @@
 
 namespace App\Notifications\Channels;
 
-use App\Notifications\PackageNotification;
+use App\Notifications\ProjectNotification;
 use Illuminate\Notifications\Channels\DatabaseChannel;
 use Illuminate\Notifications\Notification;
 use LogicException;
@@ -17,8 +17,8 @@ class ProjectDatabaseChannel extends DatabaseChannel
      */
     protected function buildPayload($notifiable, Notification $notification): array
     {
-        if (! $notification instanceof PackageNotification) {
-            throw new LogicException('Only package notifications are stored with a project.');
+        if (! $notification instanceof ProjectNotification) {
+            throw new LogicException('Only project notifications are stored with a project.');
         }
 
         return [

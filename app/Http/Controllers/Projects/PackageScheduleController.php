@@ -47,7 +47,7 @@ class PackageScheduleController extends Controller
             $request->milestoneRows(),
             mayChangePlannedDates: $request->user()->can('changePlannedDates', [Package::class, $project]),
         );
-        CheckProjectRisks::dispatch($project->id, $request->user()->id);
+        CheckProjectRisks::dispatch($project->id, $request->user()->id, savedPackageIds: [$package->id]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Dates saved.')]);
 

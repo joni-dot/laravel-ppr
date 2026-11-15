@@ -26,11 +26,15 @@ class CheckProjectRisks implements ShouldQueue
     /**
      * @param  int|null  $changedById  whose save started the check; they aren't told about their own change
      * @param  bool  $sendDateReminders  only on the daily run, so nobody is reminded of a date they have just typed
+     * @param  list<int>|null  $savedPackageIds  the packages the save changed, when it changed only those; the packages
+     *                                           above and below them change with them. Null: the save changed the whole
+     *                                           project (risk warnings, milestones, people), so the saver is told nothing.
      */
     public function __construct(
         public readonly int $projectId,
         public readonly ?int $changedById = null,
         public readonly bool $sendDateReminders = false,
+        public readonly ?array $savedPackageIds = null,
     ) {
         // A save's check must see what the save wrote.
         $this->afterCommit();
@@ -57,9 +61,9 @@ class CheckProjectRisks implements ShouldQueue
 
         // Read once for both: the stored levels as they were before this run tells the reminders which packages are new.
         $rows = ProjectRisks::packageRows($project)->addSelect('packages.notified_risk_level')->get();
-        $schedules = ProjectSchedules::for($project, $rows);
+        $schedules = ProjectSchedules::for($project, $rows, now('UTC')->toDateString());
 
-        $notifyRiskChanges->handle($project, $rows, $schedules, $this->changedById);
+        $notifyRiskChanges->handle($project, $rows, $schedules, $this->changedById, $this->savedPackageIds);
         $sendDateReminders->handle($project, $rows, $schedules, onlyFirstChecks: ! $this->sendDateReminders);
     }
 }

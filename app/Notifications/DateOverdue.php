@@ -5,7 +5,7 @@ namespace App\Notifications;
 use App\Models\Package;
 
 /**
- * "Order placed was expected on 3 Nov and isn't marked done." Sent once per milestone and expected date.
+ * "Order placed was due on 3 Nov and isn't marked done." Sent once per milestone and due date (the forecast, else the planned date).
  */
 class DateOverdue extends PackageNotification
 {
